@@ -6,7 +6,11 @@ import { AuthService } from './auth.service';
 
 import { AuthDto } from './dto/auth.dto'; 
 
-import { AuthGuard } from '@nestjs/passport'; 
+import { AccessTokenGuard } from './guards/access-token.guard'; 
+
+import { RefreshTokenGuard } from './guards/refresh-token.guard'; 
+
+import { Throttle } from '@nestjs/throttler'; 
 
  
 
@@ -26,7 +30,7 @@ export class AuthController {
 
     } 
 
- 
+    @Throttle({ default: { limit: 5, ttl: 60_000 } }) 
 
     @Post('signin') 
 
@@ -38,7 +42,7 @@ export class AuthController {
 
  
 
-    @UseGuards(AuthGuard('jwt')) 
+    @UseGuards(AccessTokenGuard) 
 
     @Get('profile') 
 
@@ -47,5 +51,27 @@ export class AuthController {
         return req.user; 
 
     } 
+        @UseGuards(RefreshTokenGuard) 
 
+    @Post('refresh') 
+
+    refresh(@Req() req: any) { 
+
+        const { sub: userId, email, role, refreshToken } = req.user; 
+
+        return this.authService.refreshTokens(userId, email, role, refreshToken); 
+
+    } 
+
+ 
+
+    @UseGuards(AccessTokenGuard) 
+
+    @Post('logout') 
+
+    logout(@Req() req: any) { 
+
+        return this.authService.logout(req.user.userId); 
+
+    } 
 } 
