@@ -3,7 +3,7 @@ const router = express.Router();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Order = require('../models/Order');
 const User = require('../models/User');
-const { protect } = require('../middleware/authMiddleware');
+const { requireAuth } = require('../middleware/authMiddleware');
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
 
@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 
 // @desc    Create new order & Get Stripe Session
 // @route   POST /api/orders
-router.post('/', protect, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { shopId, services, totalPrice } = req.body;
 
     if (services && services.length === 0) {
@@ -59,7 +59,7 @@ router.post('/', protect, async (req, res) => {
 
 // @desc    Update order to paid & Send Email
 // @route   PUT /api/orders/:id/pay
-router.put('/:id/pay', protect, async (req, res) => {
+router.put('/:id/pay', requireAuth, async (req, res) => {
     const order = await Order.findById(req.params.id).populate('userId', 'name email');
 
     if (order) {
@@ -101,7 +101,7 @@ router.put('/:id/pay', protect, async (req, res) => {
 
 // @desc    Get user orders
 // @route   GET /api/orders/myorders
-router.get('/myorders', protect, async (req, res) => {
+router.get('/myorders', requireAuth, async (req, res) => {
     const orders = await Order.find({ userId: req.user._id }).sort({ createdAt: -1 });
     res.json(orders);
 });

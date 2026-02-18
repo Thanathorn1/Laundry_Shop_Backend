@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const Shop = require('../models/Shop');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { requireAuth, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
 // @desc    Get all shops (branches)
@@ -25,7 +25,7 @@ router.get('/:id', async (req, res) => {
 
 // @desc    Create a shop with image upload (Admin)
 // @route   POST /api/shops
-router.post('/', protect, admin, upload.single('image'), async (req, res) => {
+router.post('/', requireAuth, admin, upload.single('image'), async (req, res) => {
     try {
         const { name, address, phone, openHours, lat, lng } = req.body;
 
@@ -54,7 +54,7 @@ router.post('/', protect, admin, upload.single('image'), async (req, res) => {
 
 // @desc    Update a shop (Admin)
 // @route   PUT /api/shops/:id
-router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
+router.put('/:id', requireAuth, admin, upload.single('image'), async (req, res) => {
     try {
         const shop = await Shop.findById(req.params.id);
         if (!shop) return res.status(404).json({ message: 'Shop not found' });
@@ -80,7 +80,7 @@ router.put('/:id', protect, admin, upload.single('image'), async (req, res) => {
 
 // @desc    Delete a shop (Admin)
 // @route   DELETE /api/shops/:id
-router.delete('/:id', protect, admin, async (req, res) => {
+router.delete('/:id', requireAuth, admin, async (req, res) => {
     const shop = await Shop.findById(req.params.id);
     if (shop) {
         await shop.deleteOne();

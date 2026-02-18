@@ -1,12 +1,14 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'admin', 'rider', 'customer'], default: 'customer' },
+  riderStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  isActive: { type: Boolean, default: true },
   points: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
 });
