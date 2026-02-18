@@ -4,15 +4,26 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { UsersService } from './users.service'; 
 
-import { User, UserSchema } from './schemas/user.schema'; 
-
- 
+import { User, UserSchema } from './schemas/user.schema';
+import { Customer, CustomerSchema } from './schemas/customer.schema';
+import { Review, ReviewSchema } from './schemas/review.schema';
+import { Order, OrderSchema } from './schemas/order.schema';
+import { CustomersController } from './customers.controller';
 
 @Module({ 
 
-  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])], 
+  imports: [
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Customer.name, schema: CustomerSchema },
+      { name: Review.name, schema: ReviewSchema },
+      { name: Order.name, schema: OrderSchema },
+    ]),
+  ],
 
   providers: [UsersService], 
+
+  controllers: [CustomersController],
 
   exports: [UsersService], 
 
