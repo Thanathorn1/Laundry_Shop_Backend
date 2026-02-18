@@ -25,6 +25,18 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Environment
+
+Create a `.env` file (or use the existing one) with at least:
+
+- `MONGO_URI`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `JWT_ACCESS_EXPIRATION`
+- `JWT_REFRESH_EXPIRATION`
+
+An example is available in `.env.example`.
+
 ## Project setup
 
 ```bash

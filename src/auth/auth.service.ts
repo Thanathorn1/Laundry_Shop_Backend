@@ -82,9 +82,13 @@ export class AuthService {
 
         if (userExists) throw new BadRequestException('Email นี้ถูกใช้งานแล้ว'); 
 
+        if (dto.role === 'admin') throw new BadRequestException('ไม่สามารถสมัครบัญชีแอดมินผ่านหน้านี้ได้');
+
  
 
         const passwordHash = await argon2.hash(dto.password); 
+
+        const signupRole = dto.role === 'rider' ? 'rider' : 'user';
 
  
 
@@ -93,6 +97,8 @@ export class AuthService {
             email, 
 
             passwordHash, 
+
+            role: signupRole,
 
         }); 
         const tokens = await this.signTokens({ id: String(newUser._id), email: newUser.email, role: newUser.role }); 
@@ -118,6 +124,10 @@ export class AuthService {
         const passwordMatches = await argon2.verify(user.passwordHash, dto.password); 
 
         if (!passwordMatches) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง'); 
+
+        if (dto.role && dto.role !== user.role) {
+            throw new UnauthorizedException('บัญชีนี้ไม่ตรงกับประเภทผู้ใช้ที่เลือก');
+        }
 
  
 

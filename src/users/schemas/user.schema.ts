@@ -5,7 +5,7 @@ import { HydratedDocument } from 'mongoose';
  
 
 export type UserDocument = HydratedDocument<User>; 
-export type UserRole = 'user' | 'admin';  // สามารถกำหนดประเภทผู้ใช้ในฐานข้อมูลได้ 
+export type UserRole = 'user' | 'admin' | 'rider';  // สามารถกำหนดประเภทผู้ใช้ในฐานข้อมูลได้ 
  
 
 @Schema({ timestamps: true }) 
@@ -21,7 +21,7 @@ export class User {
     @Prop({ required: true, select: false }) 
 
     passwordHash: string; 
-    @Prop({ required: true, default: 'user' }) 
+    @Prop({ required: true, enum: ['user', 'admin', 'rider'], default: 'user' }) 
 
     role: UserRole; 
 
