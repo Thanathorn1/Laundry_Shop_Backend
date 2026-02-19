@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Request, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateCustomerDto, CreateReviewDto, CreateOrderDto, UpdateOrderDto } from './dto/create-customer.dto';
+import { CreateCustomerDto, CreateReviewDto, CreateOrderDto, UpdateOrderDto } from './admin/dto/create-customer.dto';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 
 @Controller('customers')

@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Address } from './schemas/address.schema';
 import { OrderLocation } from './schemas/order-location.schema';
 import { RiderLocation } from './schemas/rider-location.schema';
+import { Shop } from './schemas/shop.schema';
 
 @Injectable()
 export class MapService {
@@ -11,7 +14,93 @@ export class MapService {
     @InjectModel(Address.name) private addressModel: Model<Address>,
     @InjectModel(OrderLocation.name) private orderLocationModel: Model<OrderLocation>,
     @InjectModel(RiderLocation.name) private riderLocationModel: Model<RiderLocation>,
+    @InjectModel(Shop.name) private shopModel: Model<Shop>,
   ) {}
+
+  private migrationDone = false;
+
+  private async migrateLegacyShopsIfNeeded() {
+    if (this.migrationDone) return;
+    this.migrationDone = true;
+
+    const shopCount = await this.shopModel.countDocuments();
+    if (shopCount > 0) return;
+
+    const legacyShops = await this.addressModel.find({ ownerType: 'shop' }).lean();
+    if (!legacyShops.length) return;
+
+    const docs = legacyShops
+      .filter((item: any) => item.location?.coordinates?.length >= 2)
+      .map((item: any) => ({
+        shopName: item.shopName || item.label || 'Laundry Shop',
+        label: item.label || item.shopName || 'Laundry Shop',
+        phoneNumber: item.phoneNumber || '',
+        photoImage: item.photoImage || '',
+        ownerId: item.ownerId || 'legacy',
+        location: item.location,
+      }));
+
+    if (docs.length) {
+      await this.shopModel.insertMany(docs, { ordered: false });
+    }
+
+    // Remove legacy records so they don't re-migrate
+    await this.addressModel.deleteMany({ ownerType: 'shop' });
+  }
+
+  private ensureShopUploadDir(): string {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'shop');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    return uploadDir;
+  }
+
+  private dataUrlToFileExt(mimeType: string): string {
+    if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') return 'jpg';
+    if (mimeType === 'image/png') return 'png';
+    if (mimeType === 'image/webp') return 'webp';
+    if (mimeType === 'image/gif') return 'gif';
+    return 'jpg';
+  }
+
+  private persistShopPhoto(photoImage?: string): string {
+    if (!photoImage || typeof photoImage !== 'string') return '';
+
+    if (photoImage.startsWith('/uploads/shop/') || photoImage.startsWith('http://') || photoImage.startsWith('https://')) {
+      return photoImage;
+    }
+
+    const match = photoImage.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) {
+      return photoImage;
+    }
+
+    const mimeType = match[1];
+    const payload = match[2];
+    const ext = this.dataUrlToFileExt(mimeType);
+    const fileName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+    const uploadDir = this.ensureShopUploadDir();
+    const absolutePath = path.join(uploadDir, fileName);
+
+    fs.writeFileSync(absolutePath, Buffer.from(payload, 'base64'));
+
+    return `/uploads/shop/${fileName}`;
+  }
+
+  private deleteShopPhotoByPath(relativePath?: string) {
+    if (!relativePath || !relativePath.startsWith('/uploads/shop/')) return;
+
+    const fileName = path.basename(relativePath);
+    const absolutePath = path.join(process.cwd(), 'uploads', 'shop', fileName);
+    if (fs.existsSync(absolutePath)) {
+      try {
+        fs.unlinkSync(absolutePath);
+      } catch {
+        // ignore cleanup error
+      }
+    }
+  }
 
   private toLngLat(input: any): [number, number] | null {
     if (!input) return null;
@@ -62,14 +151,14 @@ export class MapService {
   async createShopPin(ownerId: string, payload: any) {
     const location = this.normalizeLocation(payload.location);
     const shopName = payload.shopName || payload.label || 'Laundry Shop';
+    const savedPhoto = this.persistShopPhoto(payload.photoImage || '');
 
-    const doc = new this.addressModel({
-      ownerType: 'shop',
+    const doc = new this.shopModel({
       ownerId,
       label: payload.label || shopName,
       shopName,
       phoneNumber: payload.phoneNumber || '',
-      photoImage: payload.photoImage || '',
+      photoImage: savedPhoto,
       location,
     });
 
@@ -77,20 +166,41 @@ export class MapService {
   }
 
   async listShopPins() {
-    return this.addressModel
-      .find({ ownerType: 'shop' })
+    await this.migrateLegacyShopsIfNeeded();
+
+    return this.shopModel
+      .find()
       .sort({ createdAt: -1 })
       .lean();
   }
 
   async updateShopPin(shopId: string, payload: any) {
+    const existing = await this.shopModel.findOne({ _id: shopId }).lean();
+    const legacyExisting = !existing
+      ? await this.addressModel.findOne({ _id: shopId, ownerType: 'shop' }).lean()
+      : null;
+    const target = existing || legacyExisting;
+    if (!target) return null;
+
     const updateData: any = {};
 
     if (payload.shopName !== undefined) updateData.shopName = payload.shopName;
     if (payload.label !== undefined) updateData.label = payload.label;
     if (payload.phoneNumber !== undefined) updateData.phoneNumber = payload.phoneNumber;
-    if (payload.photoImage !== undefined) updateData.photoImage = payload.photoImage;
+    if (payload.photoImage !== undefined) {
+      const nextPhoto = this.persistShopPhoto(payload.photoImage);
+      updateData.photoImage = nextPhoto;
+      if (target.photoImage && target.photoImage !== nextPhoto) {
+        this.deleteShopPhotoByPath(target.photoImage);
+      }
+    }
     if (payload.location !== undefined) updateData.location = this.normalizeLocation(payload.location);
+
+    if (existing) {
+      return this.shopModel
+        .findOneAndUpdate({ _id: shopId }, { $set: updateData }, { new: true })
+        .lean();
+    }
 
     return this.addressModel
       .findOneAndUpdate({ _id: shopId, ownerType: 'shop' }, { $set: updateData }, { new: true })
@@ -98,9 +208,23 @@ export class MapService {
   }
 
   async deleteShopPin(shopId: string) {
-    return this.addressModel
-      .findOneAndDelete({ _id: shopId, ownerType: 'shop' })
+    const deletedFromShops = await this.shopModel
+      .findOneAndDelete({ _id: shopId })
       .lean();
+
+    const deletedFromAddresses = !deletedFromShops
+      ? await this.addressModel
+          .findOneAndDelete({ _id: shopId, ownerType: 'shop' })
+          .lean()
+      : null;
+
+    const deleted = deletedFromShops || deletedFromAddresses;
+
+    if (deleted?.photoImage) {
+      this.deleteShopPhotoByPath(deleted.photoImage);
+    }
+
+    return deleted;
   }
 
   async listAddresses(filter = {}) {
@@ -108,11 +232,11 @@ export class MapService {
   }
 
   async listNearbyShops(lat: number, lng: number, maxDistanceKm = 5) {
+    await this.migrateLegacyShopsIfNeeded();
     const maxDistanceMeters = Math.max(0.2, maxDistanceKm) * 1000;
 
-    const shops = await this.addressModel
+    const shops = await this.shopModel
       .find({
-        ownerType: 'shop',
         location: {
           $near: {
             $geometry: { type: 'Point', coordinates: [lng, lat] },

@@ -5,6 +5,7 @@ import { MapController } from './map.controller';
 import { Address, AddressSchema } from './schemas/address.schema';
 import { OrderLocation, OrderLocationSchema } from './schemas/order-location.schema';
 import { RiderLocation, RiderLocationSchema } from './schemas/rider-location.schema';
+import { Shop, ShopSchema } from './schemas/shop.schema';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { RiderLocation, RiderLocationSchema } from './schemas/rider-location.sch
       { name: Address.name, schema: AddressSchema },
       { name: OrderLocation.name, schema: OrderLocationSchema },
       { name: RiderLocation.name, schema: RiderLocationSchema },
+      { name: Shop.name, schema: ShopSchema },
     ]),
   ],
   providers: [MapService],

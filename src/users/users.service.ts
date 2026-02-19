@@ -4,11 +4,11 @@ import { InjectModel } from '@nestjs/mongoose';
 
 import { Model, Types } from 'mongoose'; 
 
-import { User, UserDocument, UserRole } from './schemas/user.schema';
-import { Customer, CustomerDocument } from './schemas/customer.schema';
-import { Review, ReviewDocument } from './schemas/review.schema';
-import { Order, OrderDocument } from './schemas/order.schema';
-import { CreateCustomerDto } from './dto/create-customer.dto'; 
+import { User, UserDocument, UserRole } from './admin/schemas/user.schema';
+import { Customer, CustomerDocument } from './admin/schemas/customer.schema';
+import { Review, ReviewDocument } from './admin/schemas/review.schema';
+import { Order, OrderDocument } from './admin/schemas/order.schema';
+import { CreateCustomerDto } from './admin/dto/create-customer.dto'; 
 
  
 
