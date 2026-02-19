@@ -9,6 +9,7 @@ import { Customer, CustomerSchema } from './schemas/customer.schema';
 import { Review, ReviewSchema } from './schemas/review.schema';
 import { Order, OrderSchema } from './schemas/order.schema';
 import { CustomersController } from './customers.controller';
+import { AdminUsersController } from './admin/admin-users.controller';
 
 @Module({ 
 
@@ -23,7 +24,7 @@ import { CustomersController } from './customers.controller';
 
   providers: [UsersService], 
 
-  controllers: [CustomersController],
+  controllers: [CustomersController, AdminUsersController],
 
   exports: [UsersService], 
 
