@@ -91,6 +91,14 @@ export class UsersService {
         return this.userModel.findById(userId).exec();
     }
 
+    listUsersByRole(role: UserRole) {
+        return this.userModel
+            .find({ role })
+            .select('-passwordHash -refreshTokenHash')
+            .sort({ createdAt: -1 })
+            .exec();
+    }
+
     async upsertUserProfile(userId: string, data: Partial<CreateCustomerDto>) {
         const updateData: any = {};
         if (data.firstName !== undefined) updateData.firstName = data.firstName;

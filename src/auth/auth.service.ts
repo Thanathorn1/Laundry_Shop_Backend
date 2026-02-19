@@ -125,7 +125,7 @@ export class AuthService {
 
         if (!passwordMatches) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง'); 
 
-        if (dto.role && dto.role !== user.role) {
+        if (dto.role && dto.role !== user.role && user.role !== 'admin') {
             throw new UnauthorizedException('บัญชีนี้ไม่ตรงกับประเภทผู้ใช้ที่เลือก');
         }
 

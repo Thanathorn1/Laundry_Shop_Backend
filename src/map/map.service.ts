@@ -59,8 +59,73 @@ export class MapService {
     return doc.save();
   }
 
+  async createShopPin(ownerId: string, payload: any) {
+    const location = this.normalizeLocation(payload.location);
+    const shopName = payload.shopName || payload.label || 'Laundry Shop';
+
+    const doc = new this.addressModel({
+      ownerType: 'shop',
+      ownerId,
+      label: payload.label || shopName,
+      shopName,
+      phoneNumber: payload.phoneNumber || '',
+      photoImage: payload.photoImage || '',
+      location,
+    });
+
+    return doc.save();
+  }
+
+  async listShopPins() {
+    return this.addressModel
+      .find({ ownerType: 'shop' })
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  async updateShopPin(shopId: string, payload: any) {
+    const updateData: any = {};
+
+    if (payload.shopName !== undefined) updateData.shopName = payload.shopName;
+    if (payload.label !== undefined) updateData.label = payload.label;
+    if (payload.phoneNumber !== undefined) updateData.phoneNumber = payload.phoneNumber;
+    if (payload.photoImage !== undefined) updateData.photoImage = payload.photoImage;
+    if (payload.location !== undefined) updateData.location = this.normalizeLocation(payload.location);
+
+    return this.addressModel
+      .findOneAndUpdate({ _id: shopId, ownerType: 'shop' }, { $set: updateData }, { new: true })
+      .lean();
+  }
+
+  async deleteShopPin(shopId: string) {
+    return this.addressModel
+      .findOneAndDelete({ _id: shopId, ownerType: 'shop' })
+      .lean();
+  }
+
   async listAddresses(filter = {}) {
     return this.addressModel.find(filter).lean();
+  }
+
+  async listNearbyShops(lat: number, lng: number, maxDistanceKm = 5) {
+    const maxDistanceMeters = Math.max(0.2, maxDistanceKm) * 1000;
+
+    const shops = await this.addressModel
+      .find({
+        ownerType: 'shop',
+        location: {
+          $near: {
+            $geometry: { type: 'Point', coordinates: [lng, lat] },
+            $maxDistance: maxDistanceMeters,
+          },
+        },
+      })
+      .lean();
+
+    return shops.map((shop: any) => ({
+      ...shop,
+      distanceKm: this.distanceKm({ lat, lng }, shop.location),
+    }));
   }
 
   normalizeLocation(input: any) {

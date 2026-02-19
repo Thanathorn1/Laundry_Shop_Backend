@@ -17,6 +17,15 @@ export class Address extends Document {
 
   @Prop()
   label?: string;
+
+  @Prop({ default: '' })
+  shopName?: string;
+
+  @Prop({ default: '' })
+  phoneNumber?: string;
+
+  @Prop({ default: '' })
+  photoImage?: string;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

@@ -11,6 +11,12 @@ export class CustomersController {
     return req?.user?.userId || req?.user?.sub || req?.user?.id;
   }
 
+  private ensureAdmin(req: any) {
+    if (req?.user?.role !== 'admin') {
+      throw new ForbiddenException('Admin only');
+    }
+  }
+
   @UseGuards(AccessTokenGuard)
   @Post('register')
   async registerCustomer(@Request() req, @Body() dto: CreateCustomerDto) {
@@ -139,5 +145,19 @@ export class CustomersController {
   @Get('nearby')
   async getNearbyCustomers(@Body() body: { latitude: number; longitude: number; maxDistance?: number }) {
     return this.usersService.findNearbyCustomers(body.longitude, body.latitude, body.maxDistance);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('admin/customers')
+  async listCustomersForAdmin(@Request() req) {
+    this.ensureAdmin(req);
+    return this.usersService.listUsersByRole('user');
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('admin/riders')
+  async listRidersForAdmin(@Request() req) {
+    this.ensureAdmin(req);
+    return this.usersService.listUsersByRole('rider');
   }
 }
