@@ -117,4 +117,52 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   deliveryAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  pickupType?: 'now' | 'schedule';
+
+  @IsOptional()
+  pickupAt?: string;
+}
+
+export class UpdateOrderDto {
+  @IsOptional()
+  @IsString()
+  productName?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  images?: string[];
+
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  pickupAddress?: string;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLatitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLongitude?: number;
+
+  @IsOptional()
+  @IsString()
+  pickupType?: 'now' | 'schedule';
+
+  @IsOptional()
+  pickupAt?: string;
 }

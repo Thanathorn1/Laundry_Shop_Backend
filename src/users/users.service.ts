@@ -87,10 +87,84 @@ export class UsersService {
 
     }
 
+    findUserById(userId: string) {
+        return this.userModel.findById(userId).exec();
+    }
+
+    async upsertUserProfile(userId: string, data: Partial<CreateCustomerDto>) {
+        const updateData: any = {};
+        if (data.firstName !== undefined) updateData.firstName = data.firstName;
+        if (data.lastName !== undefined) updateData.lastName = data.lastName;
+        if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
+        if (data.profileImage !== undefined) updateData.profileImage = data.profileImage;
+        if (data.address !== undefined) updateData.address = data.address;
+        if (data.latitude !== undefined && data.longitude !== undefined) {
+            updateData.location = {
+                type: 'Point',
+                coordinates: [data.longitude, data.latitude],
+            };
+        }
+
+        await this.userModel.updateOne({ _id: userId }, { $set: updateData }).exec();
+        return this.userModel.findById(userId).exec();
+    }
+
+    async addUserSavedAddress(
+        userId: string,
+        label: string,
+        address: string,
+        latitude: number,
+        longitude: number,
+        isDefault: boolean = false,
+        contactPhone?: string,
+        pickupType?: 'now' | 'schedule',
+        pickupAt?: string | null,
+    ) {
+        const trimmedLabel = label.trim();
+        const labelKey = trimmedLabel.toLowerCase();
+
+        const newAddress = {
+            label: trimmedLabel,
+            address,
+            coordinates: [longitude, latitude],
+            isDefault,
+            contactPhone: contactPhone || '',
+            pickupType: pickupType || 'now',
+            pickupAt: pickupAt ? new Date(pickupAt) : null,
+        };
+
+        const user = await this.userModel.findById(userId).select('savedAddresses').lean().exec();
+        const currentAddresses = (user?.savedAddresses || []) as any[];
+
+        let mergedAddresses = currentAddresses.filter((item) => {
+            const itemLabel = typeof item?.label === 'string' ? item.label.trim().toLowerCase() : '';
+            return itemLabel !== labelKey;
+        });
+
+        if (isDefault) {
+            mergedAddresses = mergedAddresses.map((item) => ({
+                ...item,
+                isDefault: false,
+            }));
+        }
+
+        mergedAddresses.push(newAddress);
+
+        return this.userModel.findByIdAndUpdate(
+            userId,
+            { $set: { savedAddresses: mergedAddresses } },
+            { new: true },
+        ).exec();
+    }
+
     // ===== CUSTOMER METHODS =====
 
     findCustomerByUserId(userId: string) {
-        return this.customerModel.findOne({ userId } as any).populate('userId').exec();
+        const query = Types.ObjectId.isValid(userId)
+            ? { $or: [{ userId: new Types.ObjectId(userId) }, { userId }] }
+            : { userId };
+
+        return this.customerModel.findOne(query as any).populate('userId').exec();
     }
 
     findCustomerById(customerId: string) {
@@ -104,7 +178,7 @@ export class UsersService {
         };
 
         return this.customerModel.create({
-            userId: userId as any,
+            userId: Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : (userId as any),
             firstName: data.firstName,
             lastName: data.lastName,
             phoneNumber: data.phoneNumber,
@@ -187,16 +261,45 @@ export class UsersService {
         } : undefined;
 
         return this.orderModel.create({
-            customerId: customerId as any,
+            customerId: Types.ObjectId.isValid(customerId) ? new Types.ObjectId(customerId) : (customerId as any),
             productName: data.productName,
+            contactPhone: data.contactPhone || '',
             description: data.description || '',
             images: data.images || [],
             pickupLocation,
             pickupAddress: data.pickupAddress || null,
-            deliveryLocation: deliveryLocation,
+            pickupType: data.pickupType || 'now',
+            pickupAt: data.pickupAt ? new Date(data.pickupAt) : null,
+            ...(deliveryLocation ? { deliveryLocation } : {}),
             deliveryAddress: data.deliveryAddress || null,
             status: 'pending',
         });
+    }
+
+    findOrderById(orderId: string) {
+        return this.orderModel.findById(orderId).exec();
+    }
+
+    updateOrder(orderId: string, data: any) {
+        const updateData: any = {};
+        if (data.productName) updateData.productName = data.productName;
+        if (data.description !== undefined) updateData.description = data.description;
+        if (data.images !== undefined) updateData.images = data.images;
+        if (data.contactPhone) updateData.contactPhone = data.contactPhone;
+        if (data.pickupAddress !== undefined) updateData.pickupAddress = data.pickupAddress;
+        if (data.pickupType) updateData.pickupType = data.pickupType;
+        if (data.pickupAt !== undefined) updateData.pickupAt = data.pickupAt ? new Date(data.pickupAt) : null;
+        if (data.pickupLatitude !== undefined && data.pickupLongitude !== undefined) {
+            updateData.pickupLocation = {
+                type: 'Point',
+                coordinates: [data.pickupLongitude, data.pickupLatitude],
+            };
+        }
+        return this.orderModel.findByIdAndUpdate(orderId, updateData, { new: true }).exec();
+    }
+
+    deleteOrder(orderId: string) {
+        return this.orderModel.findByIdAndDelete(orderId).exec();
     }
 
     updateOrderStatus(orderId: string, status: string) {
@@ -208,7 +311,9 @@ export class UsersService {
     }
 
     getCustomerOrders(customerId: string, status?: string) {
-        const query: any = { customerId };
+        const query: any = Types.ObjectId.isValid(customerId)
+            ? { $or: [{ customerId: new Types.ObjectId(customerId) }, { customerId }] }
+            : { customerId };
         if (status) query.status = status;
 
         return this.orderModel.find(query).sort({ createdAt: -1 }).exec();

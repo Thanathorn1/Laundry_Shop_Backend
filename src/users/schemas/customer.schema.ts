@@ -81,5 +81,3 @@ export const CustomerSchema = SchemaFactory.createForClass(Customer);
 
 // สร้าง 2dsphere index สำหรับ geospatial queries (หาไรเดอร์ใกล้ลูกค้า)
 CustomerSchema.index({ location: '2dsphere' });
-CustomerSchema.index({ phoneNumber: 1 });
-CustomerSchema.index({ userId: 1 });

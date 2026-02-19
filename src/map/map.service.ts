@@ -13,7 +13,7 @@ export class MapService {
     @InjectModel(RiderLocation.name) private riderLocationModel: Model<RiderLocation>,
   ) {}
 
-  private toLngLat(input: any): [number, number] {
+  private toLngLat(input: any): [number, number] | null {
     if (!input) return null;
     if (input.type === 'Point' && Array.isArray(input.coordinates)) return [input.coordinates[0], input.coordinates[1]];
     if ('lat' in input && 'lng' in input) return [input.lng, input.lat];
@@ -22,7 +22,7 @@ export class MapService {
   }
 
   // Haversine distance in kilometers
-  distanceKm(from: any, to: any): number {
+  distanceKm(from: any, to: any): number | null {
     const a = this.toLngLat(from);
     const b = this.toLngLat(to);
     if (!a || !b) return null;
@@ -39,14 +39,14 @@ export class MapService {
   }
 
   // Approx duration in minutes assuming average speed (km/h)
-  durationMin(distanceKm: number, speedKmh = 30): number {
+  durationMin(distanceKm: number | null, speedKmh = 30): number | null {
     if (distanceKm == null) return null;
     const hours = distanceKm / speedKmh;
     return Math.round(hours * 60);
   }
 
   // Simple fee formula: base + per-km
-  deliveryFee(distanceKm: number): number {
+  deliveryFee(distanceKm: number | null): number | null {
     if (distanceKm == null) return null;
     const base = 20; // base THB
     const perKm = 5; // per km THB
