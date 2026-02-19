@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { User } from './user.schema';
+import { User } from '../../schemas/user.schema';
 
 export type CustomerDocument = HydratedDocument<Customer>;
 
@@ -21,7 +21,6 @@ export class Customer {
   @Prop({ type: String, default: null })
   profileImage: string | null;
 
-  // GeoJSON format สำหรับ Geospatial query
   @Prop({
     type: {
       type: String,
@@ -29,8 +28,8 @@ export class Customer {
       default: 'Point',
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
-      default: [100.5018, 13.7563], // Bangkok default
+      type: [Number],
+      default: [100.5018, 13.7563],
     },
   })
   location: {
@@ -41,13 +40,12 @@ export class Customer {
   @Prop({ type: String, default: null })
   address: string | null;
 
-  // บันทึกประวัติ addresses
   @Prop({
     type: [
       {
-        label: String, // 'Home', 'Work', 'Other'
+        label: String,
         address: String,
-        coordinates: [Number], // [lng, lat]
+        coordinates: [Number],
         isDefault: Boolean,
       },
     ],
@@ -60,7 +58,6 @@ export class Customer {
     isDefault: boolean;
   }>;
 
-  // Rating from riders
   @Prop({ type: Number, min: 0, max: 5, default: 0 })
   averageRating: number;
 
@@ -79,5 +76,4 @@ export class Customer {
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);
 
-// สร้าง 2dsphere index สำหรับ geospatial queries (หาไรเดอร์ใกล้ลูกค้า)
 CustomerSchema.index({ location: '2dsphere' });

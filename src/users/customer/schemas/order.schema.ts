@@ -18,14 +18,12 @@ export class Order {
   @Prop({ type: String, default: '' })
   description: string;
 
-  // รูปภาพสินค้าที่ compress แล้ว
   @Prop({
     type: [String],
     default: [],
   })
   images: string[];
 
-  // GeoJSON format สำหรับตำแหน่งปิคอัพ
   @Prop({
     type: {
       type: String,
@@ -33,7 +31,7 @@ export class Order {
       default: 'Point',
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
+      type: [Number],
       required: true,
     },
   })
@@ -51,7 +49,6 @@ export class Order {
   @Prop({ type: Date, default: null })
   pickupAt: Date | null;
 
-  // GeoJSON format สำหรับตำแหน่งส่ง (ถ้า merchant)
   @Prop({ type: Object })
   deliveryLocation?: {
     type: 'Point';

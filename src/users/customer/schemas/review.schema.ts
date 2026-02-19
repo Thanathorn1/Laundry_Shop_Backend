@@ -13,7 +13,7 @@ export class Review {
   reviewType: 'merchant' | 'rider';
 
   @Prop({ type: String, default: null })
-  targetId: string | null; // ID ของ merchant หรือ rider
+  targetId: string | null;
 
   @Prop({ type: Number, min: 1, max: 5, required: true })
   rating: number;
