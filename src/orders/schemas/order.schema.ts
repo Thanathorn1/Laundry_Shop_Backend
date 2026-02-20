@@ -1,35 +1,83 @@
-// src/orders/schemas/order.schema.ts
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
-export type OrderDocument = Order & Document;
+export type OrderDocument = HydratedDocument<Order>;
+export type OrderStatus = 'pending' | 'assigned' | 'picked_up' | 'completed' | 'cancelled';
 
-@Schema({ timestamps: true })
+@Schema({ collection: 'customerorders', timestamps: true })
 export class Order {
     @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-    user: Types.ObjectId;
+    customerId: Types.ObjectId;
 
-    @Prop({ required: true })
-    weight: number;
+    @Prop({ type: String, required: true })
+    productName: string;
 
-    @Prop({ required: true })
-    price: number;
+    @Prop({ type: String, required: true, default: '' })
+    contactPhone: string;
 
-    @Prop({ default: 'pending' })
-    status: string;
+    @Prop({ type: String, default: '' })
+    description: string;
+
+    @Prop({
+        type: [String],
+        default: [],
+    })
+    images: string[];
 
     @Prop({
         type: {
-            lat: { type: Number, required: true },
-            lng: { type: Number, required: true }
+            type: String,
+            enum: ['Point'],
+            default: 'Point',
         },
-        required: true
+        coordinates: {
+            type: [Number],
+            required: true,
+        },
     })
-    location: {
-        lat: number;
-        lng: number;
+    pickupLocation: {
+        type: 'Point';
+        coordinates: number[]; // [lon, lat]
     };
+
+    @Prop({ type: String, default: null })
+    pickupAddress: string | null;
+
+    @Prop({ type: String, enum: ['now', 'schedule'], default: 'now' })
+    pickupType: 'now' | 'schedule';
+
+    @Prop({ type: Date, default: null })
+    pickupAt: Date | null;
+
+    @Prop({ type: Object })
+    deliveryLocation?: {
+        type: 'Point';
+        coordinates: number[];
+    };
+
+    @Prop({ type: String, default: null })
+    deliveryAddress: string | null;
+
+    @Prop({
+        type: String,
+        enum: ['pending', 'assigned', 'picked_up', 'completed', 'cancelled'],
+        default: 'pending'
+    })
+    status: OrderStatus;
+
+    @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+    riderId: Types.ObjectId | null;
+
+    @Prop({ type: Number, default: 0 })
+    totalPrice: number;
+
+    @Prop({ type: Date, default: null })
+    completedAt: Date | null;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
+
+OrderSchema.index({ customerId: 1 });
+OrderSchema.index({ status: 1 });
+OrderSchema.index({ riderId: 1 });
+OrderSchema.index({ 'pickupLocation': '2dsphere' });

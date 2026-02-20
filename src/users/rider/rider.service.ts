@@ -1,9 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+    Injectable,
+    NotFoundException,
+    BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Order, OrderDocument } from './schemas/order.schema';
-import { RiderProfile, RiderProfileDocument } from './schemas/rider-profile.schema';
+import { Order, OrderDocument, OrderStatus } from '../../orders/schemas/order.schema';
+import {
+    RiderProfile,
+    RiderProfileDocument,
+} from './schemas/rider-profile.schema';
 import { RiderProfileDto } from './dto/rider-profile.dto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,196 +18,148 @@ import * as path from 'path';
 @Injectable()
 export class RiderService {
     constructor(
-        @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
-        @InjectModel(RiderProfile.name) private riderProfileModel: Model<RiderProfileDocument>,
+        @InjectModel(Order.name)
+        private orderModel: Model<OrderDocument>,
+
+        @InjectModel(RiderProfile.name)
+        private riderProfileModel: Model<RiderProfileDocument>,
+
         private configService: ConfigService,
     ) { }
 
+    // ================= FILE DELETE =================
     public deleteFile(relativePath: string) {
         if (!relativePath) return;
 
-        const fileName = path.basename(relativePath); // ป้องกัน ../../
-        const absolutePath = path.join(process.cwd(), 'uploads', 'rider', fileName);
+        const fileName = path.basename(relativePath);
+        const absolutePath = path.join(
+            process.cwd(),
+            'uploads',
+            'rider',
+            fileName,
+        );
 
         if (fs.existsSync(absolutePath)) {
             try {
                 fs.unlinkSync(absolutePath);
-                console.log(`Deleted: ${absolutePath}`);
             } catch (err) {
-                console.error(`Delete failed:`, err);
+                console.error('Delete failed:', err);
             }
         }
     }
 
-
-    private formatProfileUrls(profile: RiderProfileDocument) {
-        try {
-            if (!profile) return null;
-            const baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3000';
-            const p = profile.toObject();
-
-            if (p.riderImageUrl && !p.riderImageUrl.startsWith('http')) {
-                p.riderImageUrl = `${baseUrl}${p.riderImageUrl}`;
-            }
-            if (p.vehicleImageUrl && !p.vehicleImageUrl.startsWith('http')) {
-                p.vehicleImageUrl = `${baseUrl}${p.vehicleImageUrl}`;
-            }
-            return p;
-        } catch (error) {
-            console.error('Error in formatProfileUrls:', error);
-            return profile; // Return original if formatting fails
-        }
-    }
-
+    // ================= PROFILE =================
     async getProfile(riderId: string) {
-        if (!riderId || !Types.ObjectId.isValid(riderId)) {
-            throw new BadRequestException(`ID ไม่ถูกต้อง หรือยังไม่ได้เข้าสู่ระบบ: ${riderId}`);
-        }
-        const profile = await this.riderProfileModel
-            .findOne({ rider: new Types.ObjectId(riderId) })
-            .populate('rider', 'email role')
-            .exec();
-        if (!profile) {
-            throw new NotFoundException('โปรไฟล์ Rider ยังไม่ได้ถูกสร้างตัวตน');
-        }
-        return this.formatProfileUrls(profile);
-    }
-
-    async findRiderById(riderId: string) {
         if (!Types.ObjectId.isValid(riderId)) {
-            throw new BadRequestException(`ID ไม่ถูกต้อง: ${riderId}`);
+            throw new BadRequestException('Invalid rider ID');
         }
+
         const profile = await this.riderProfileModel
             .findOne({ rider: new Types.ObjectId(riderId) })
             .populate('rider', 'email role')
             .exec();
+
         if (!profile) {
-            throw new NotFoundException('ไม่พบข้อมูล Rider');
+            throw new NotFoundException('Rider profile not found');
         }
-        return this.formatProfileUrls(profile);
+
+        return profile;
     }
 
     async findAllRiders() {
-        const profiles = await this.riderProfileModel
+        return this.riderProfileModel
             .find()
             .populate('rider', 'email role')
             .exec();
-        return profiles.map(p => this.formatProfileUrls(p));
     }
 
-    async updateProfile(
-        id: string,
-        dto: RiderProfileDto,
-        riderImageUrl?: string,
-        vehicleImageUrl?: string
-    ): Promise<RiderProfileDocument> {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new BadRequestException(`ID ที่ส่งมาไม่ถูกต้อง (Invalid ObjectId): ${id}`);
-        }
-
-        const objectId = new Types.ObjectId(id);
-
-        // 1. ค้นหาโปรไฟล์ที่ "เป็นของ" Rider คนนี้ (จาก User ID)
-        // หรือค้นหาตรงๆ จาก Profile ID ที่ส่งมา
-        let profile = await this.riderProfileModel.findOne({
-            $or: [
-                { rider: objectId },
-                { _id: objectId }
-            ]
+    // ================= AVAILABLE ORDERS =================
+    async findAvailableOrders() {
+        const orders = await this.orderModel.find({
+            status: 'pending',
+            riderId: null,
         });
 
-        // 2. ถ้ายังไม่มีโปรไฟล์เลย ให้สร้างใหม่
-        if (!profile) {
-            // เช็คก่อนว่า Rider คนนี้แอบมี Profile อื่นอยู่แล้วหรือเปล่า (กรณี id ที่ส่งมาคือ Profile ID)
-            // แต่ปกติ logic ด้านบนจะครอบคลุมแล้ว
-            profile = new this.riderProfileModel({
-                rider: objectId // สมมติว่า id คือ Rider ID
-            });
-        }
+        return orders.map((order) => {
+            let lat = null;
+            let lon = null;
 
-        // 3. จัดการรูปภาพ (ลบรูปเก่าถ้ามีการเปลี่ยน)
-        if (riderImageUrl) {
-            if (profile.riderImageUrl) this.deleteFile(profile.riderImageUrl);
-            profile.riderImageUrl = riderImageUrl;
-        }
-
-        if (vehicleImageUrl) {
-            if (profile.vehicleImageUrl) {
-                this.deleteFile(profile.vehicleImageUrl);
+            if (
+                order.pickupLocation &&
+                order.pickupLocation.coordinates &&
+                order.pickupLocation.coordinates.length === 2
+            ) {
+                // Mongo GeoJSON format = [longitude, latitude]
+                lon = order.pickupLocation.coordinates[0];
+                lat = order.pickupLocation.coordinates[1];
             }
-            profile.vehicleImageUrl = vehicleImageUrl;
-        }
 
-        // update field อื่นๆ ที่ส่งมาใน DTO
-        Object.assign(profile, dto);
-
-        return profile.save();
-    }
-
-
-    async purgeOrphanedFiles(): Promise<{ deletedCount: number }> {
-        const uploadDir = path.join(process.cwd(), 'uploads', 'rider');
-        if (!fs.existsSync(uploadDir)) return { deletedCount: 0 };
-
-        const files = fs.readdirSync(uploadDir);
-        const profiles = await this.riderProfileModel.find({}, 'riderImageUrl vehicleImageUrl').exec();
-
-        // ดึงรายชื่อไฟล์ทั้งหมดที่ยังใช้อยู่ใน DB
-        const usedFiles = new Set<string>();
-        profiles.forEach(p => {
-            if (p.riderImageUrl) usedFiles.add(path.basename(p.riderImageUrl));
-            if (p.vehicleImageUrl) usedFiles.add(path.basename(p.vehicleImageUrl));
+            return {
+                _id: order._id,
+                customerName: order.productName,
+                pickupAddress: order.pickupAddress,
+                deliveryAddress: order.deliveryAddress,
+                totalPrice: order.totalPrice,
+                status: order.status,
+                location: lat && lon ? { lat, lon } : null,
+                pickupLocation: order.pickupLocation,
+            };
         });
-
-        let deletedCount = 0;
-        files.forEach(file => {
-            if (!usedFiles.has(file)) {
-                try {
-                    fs.unlinkSync(path.join(uploadDir, file));
-                    deletedCount++;
-                } catch (err) {
-                    console.error(`Failed to purge file: ${file}`, err);
-                }
-            }
-        });
-
-        return { deletedCount };
     }
 
-    async findAvailableOrders(): Promise<OrderDocument[]> {
-        return this.orderModel.find({ status: 'pending', rider: { $exists: false } }).populate('customer', 'email').exec();
-    }
-
+    // ================= RIDER TASKS =================
     async findRiderTasks(riderId: string): Promise<OrderDocument[]> {
-        return this.orderModel.find({ rider: new Types.ObjectId(riderId) }).populate('customer', 'email').exec();
+        if (!Types.ObjectId.isValid(riderId)) {
+            throw new BadRequestException('Invalid rider ID');
+        }
+
+        return this.orderModel
+            .find({ riderId: new Types.ObjectId(riderId) })
+            .populate('customerId', 'email')
+            .sort({ createdAt: -1 })
+            .exec();
     }
 
-    async acceptOrder(orderId: string, riderId: string): Promise<OrderDocument> {
-        const order = await this.orderModel.findById(orderId);
-        if (!order) {
-            throw new NotFoundException('Order not found');
-        }
-        if (order.status !== 'pending' || order.rider) {
-            throw new BadRequestException('Order is no longer available');
+    // ================= ACCEPT ORDER =================
+    async acceptOrder(orderId: string, riderId: string) {
+        if (!Types.ObjectId.isValid(orderId)) {
+            throw new BadRequestException('Invalid order ID');
         }
 
-        order.rider = new Types.ObjectId(riderId);
-        order.status = 'accepted';
+        const order = await this.orderModel.findById(orderId);
+
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (order.status !== 'pending') {
+            throw new BadRequestException('Order not pending');
+        }
+
+        if (order.riderId) {
+            throw new BadRequestException('Order already taken');
+        }
+
+        order.riderId = new Types.ObjectId(riderId);
+        order.status = 'assigned';
+
         return order.save();
     }
 
-    async updateStatus(orderId: string, riderId: string, status: string): Promise<OrderDocument> {
+    // ================= UPDATE STATUS =================
+    async updateStatus(orderId: string, riderId: string, status: OrderStatus) {
         const order = await this.orderModel.findById(orderId);
-        if (!order) {
-            throw new NotFoundException('Order not found');
-        }
-        if (order.rider?.toString() !== riderId) {
-            throw new BadRequestException('You are not assigned to this order');
+
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (order.riderId?.toString() !== riderId) {
+            throw new BadRequestException('Not your order');
         }
 
-        const validTransitions = {
-            'accepted': ['picked-up', 'cancelled'],
-            'picked-up': ['delivered'],
+        const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+            'pending': ['assigned', 'cancelled'],
+            'assigned': ['picked_up', 'cancelled'],
+            'picked_up': ['completed'],
+            'completed': [],
+            'cancelled': [],
         };
 
         if (!validTransitions[order.status]?.includes(status)) {
@@ -208,45 +167,51 @@ export class RiderService {
         }
 
         order.status = status;
+
+        if (status === 'completed') {
+            order.completedAt = new Date();
+        }
+
         return order.save();
     }
 
-    async deleteRiderImage(riderId: string) {
-        const profile = await this.riderProfileModel.findOne({ rider: riderId });
-
-        if (!profile) throw new NotFoundException();
-
-        if (profile.riderImageUrl) {
-            this.deleteFile(profile.riderImageUrl);
-            profile.riderImageUrl = null;
-            await profile.save();
+    // ================= PROFILE UPDATE =================
+    async updateProfile(riderId: string, dto: RiderProfileDto) {
+        if (!Types.ObjectId.isValid(riderId)) {
+            throw new BadRequestException('Invalid ID');
         }
 
-        return { message: 'Image removed' };
-    }
-
-    async deleteProfile(id: string) {
-        const isObjectId = Types.ObjectId.isValid(id);
-
-        // ค้นหาเผื่อไว้ทั้ง 2 แบบ (Rider ID หรือ Profile ID)
-        const profile = await this.riderProfileModel.findOne({
-            $or: [
-                { rider: isObjectId ? new Types.ObjectId(id) : null },
-                { _id: isObjectId ? new Types.ObjectId(id) : null }
-            ]
+        let profile = await this.riderProfileModel.findOne({
+            rider: new Types.ObjectId(riderId),
         });
 
         if (!profile) {
-            throw new NotFoundException(`ไม่พบโปรไฟล์ที่มี ID: ${id} (ทั้งในฐานะ Rider ID และ Profile ID)`);
+            profile = new this.riderProfileModel({
+                rider: new Types.ObjectId(riderId),
+            });
         }
 
-        // ลบไฟล์รูปภาพก่อนลบ Document
-        if (profile.riderImageUrl) this.deleteFile(profile.riderImageUrl);
-        if (profile.vehicleImageUrl) this.deleteFile(profile.vehicleImageUrl);
+        Object.assign(profile, dto);
+
+        return profile.save();
+    }
+
+    // ================= DELETE PROFILE =================
+    async deleteProfile(riderId: string) {
+        if (!Types.ObjectId.isValid(riderId)) {
+            throw new BadRequestException('Invalid ID');
+        }
+
+        const profile = await this.riderProfileModel.findOne({
+            rider: new Types.ObjectId(riderId),
+        });
+
+        if (!profile) {
+            throw new NotFoundException('Profile not found');
+        }
 
         await profile.deleteOne();
 
-        return { message: 'ลบโปรไฟล์และไฟล์ภาพเรียบร้อยแล้ว' };
+        return { message: 'Profile deleted' };
     }
-
 }
