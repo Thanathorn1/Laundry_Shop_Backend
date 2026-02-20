@@ -9,6 +9,8 @@ import { Review, ReviewSchema } from './customer/schemas/review.schema';
 import { Order, OrderSchema } from './customer/schemas/order.schema';
 import { CustomersController } from './customer/customers.controller';
 import { AdminUsersController } from './admin/admin-users.controller';
+import { Shop, ShopSchema } from '../map/schemas/shop.schema';
+import { EmployeeController } from './employee/employee.controller';
 
 @Module({ 
 
@@ -18,12 +20,13 @@ import { AdminUsersController } from './admin/admin-users.controller';
       { name: Customer.name, schema: CustomerSchema },
       { name: Review.name, schema: ReviewSchema },
       { name: Order.name, schema: OrderSchema },
+      { name: Shop.name, schema: ShopSchema },
     ]),
   ],
 
   providers: [UsersService], 
 
-  controllers: [CustomersController, AdminUsersController],
+  controllers: [CustomersController, AdminUsersController, EmployeeController],
 
   exports: [UsersService], 
 

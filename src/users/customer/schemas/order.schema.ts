@@ -58,11 +58,27 @@ export class Order {
   @Prop({ type: String, default: null })
   deliveryAddress: string | null;
 
-  @Prop({ type: String, enum: ['pending', 'assigned', 'picked_up', 'completed', 'cancelled'], default: 'pending' })
-  status: 'pending' | 'assigned' | 'picked_up' | 'completed' | 'cancelled';
+  @Prop({
+    type: String,
+    enum: ['pending', 'assigned', 'picked_up', 'at_shop', 'washing', 'laundry_done', 'out_for_delivery', 'completed', 'cancelled'],
+    default: 'pending',
+  })
+  status: 'pending' | 'assigned' | 'picked_up' | 'at_shop' | 'washing' | 'laundry_done' | 'out_for_delivery' | 'completed' | 'cancelled';
 
-  @Prop({ type: String, default: null })
-  riderId: string | null;
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  riderId: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'Shop', default: null })
+  shopId: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  employeeId: Types.ObjectId | null;
+
+  @Prop({ type: Date, default: null })
+  washingStartedAt: Date | null;
+
+  @Prop({ type: Date, default: null })
+  washingCompletedAt: Date | null;
 
   @Prop({ type: Number, default: 0 })
   totalPrice: number;
@@ -76,4 +92,6 @@ export const OrderSchema = SchemaFactory.createForClass(Order);
 OrderSchema.index({ customerId: 1 });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ riderId: 1 });
+OrderSchema.index({ shopId: 1 });
+OrderSchema.index({ employeeId: 1 });
 OrderSchema.index({ 'pickupLocation': '2dsphere' });

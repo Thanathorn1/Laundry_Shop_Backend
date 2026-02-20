@@ -5,7 +5,7 @@ import { HydratedDocument } from 'mongoose';
  
 
 export type UserDocument = HydratedDocument<User>; 
-export type UserRole = 'user' | 'admin' | 'rider';  // สามารถกำหนดประเภทผู้ใช้ในฐานข้อมูลได้ 
+export type UserRole = 'user' | 'admin' | 'rider' | 'employee';  // สามารถกำหนดประเภทผู้ใช้ในฐานข้อมูลได้ 
  
 
 @Schema({ timestamps: true }) 
@@ -21,7 +21,7 @@ export class User {
     @Prop({ required: true, select: false }) 
 
     passwordHash: string; 
-    @Prop({ required: true, enum: ['user', 'admin', 'rider'], default: 'user' }) 
+    @Prop({ required: true, enum: ['user', 'admin', 'rider', 'employee'], default: 'user' }) 
 
     role: UserRole; 
 
@@ -30,6 +30,15 @@ export class User {
     @Prop({ type: String, select: false, default: null }) 
 
     refreshTokenHash?: string | null; 
+
+    @Prop({ type: String, default: null, index: true })
+    assignedShopId?: string | null;
+
+    @Prop({ type: String, default: null, index: true })
+    joinRequestShopId?: string | null;
+
+    @Prop({ type: String, enum: ['none', 'pending', 'rejected'], default: 'none' })
+    joinRequestStatus?: 'none' | 'pending' | 'rejected';
 
 
 } 

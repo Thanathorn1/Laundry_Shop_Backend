@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common'; 
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common'; 
 
 import { InjectModel } from '@nestjs/mongoose'; 
 
@@ -11,6 +11,7 @@ import { Customer, CustomerDocument } from './customer/schemas/customer.schema';
 import { Review, ReviewDocument } from './customer/schemas/review.schema';
 import { Order, OrderDocument } from './customer/schemas/order.schema';
 import { CreateCustomerDto } from './customer/dto/create-customer.dto'; 
+import { Shop } from '../map/schemas/shop.schema';
 
 type BanMode = 'unban' | 'permanent' | 'days';
 
@@ -25,6 +26,7 @@ export class UsersService {
         @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
         @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+        @InjectModel(Shop.name) private shopModel: Model<Shop>,
     ) { } 
 
     private ensureCustomerOrderUploadDir(): string {
@@ -91,6 +93,13 @@ export class UsersService {
             .exec();
     }
 
+    findByEmailForReset(email: string) {
+        return this.userModel
+            .findOne({ email })
+            .select('+resetPasswordTokenHash +resetPasswordExpiresAt')
+            .exec();
+    }
+
  
 
     // ใช้ตอน refresh: ต้องดึง refreshTokenHash 
@@ -129,6 +138,38 @@ export class UsersService {
 
     } 
 
+    setPasswordResetToken(userId: string, tokenHash: string, expiresAt: Date) {
+        return this.userModel
+            .updateOne(
+                { _id: userId },
+                { $set: { resetPasswordTokenHash: tokenHash, resetPasswordExpiresAt: expiresAt } },
+            )
+            .exec();
+    }
+
+    findByResetPasswordTokenHash(tokenHash: string) {
+        return this.userModel
+            .findOne({ resetPasswordTokenHash: tokenHash })
+            .select('+passwordHash +resetPasswordTokenHash +resetPasswordExpiresAt')
+            .exec();
+    }
+
+    async updatePasswordByUserId(userId: string, passwordHash: string) {
+        await this.userModel
+            .updateOne(
+                { _id: userId },
+                {
+                    $set: {
+                        passwordHash,
+                        refreshTokenHash: null,
+                        resetPasswordTokenHash: null,
+                        resetPasswordExpiresAt: null,
+                    },
+                },
+            )
+            .exec();
+    }
+
  
 
     // อัพเดทบทบาทผู้ใช้ 
@@ -166,6 +207,188 @@ export class UsersService {
         return users;
     }
 
+    async listEmployeesByShop() {
+        const [employees, shops] = await Promise.all([
+            this.userModel
+                .find({ role: 'employee' })
+                .select('-passwordHash -refreshTokenHash')
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec(),
+            this.shopModel
+                .find()
+                .select('_id shopName label phoneNumber')
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec(),
+        ]);
+
+        const shopsById = new Map(shops.map((shop: any) => [String(shop._id), shop]));
+        const employeesByShop = new Map<string, any[]>();
+        const unassignedEmployees: any[] = [];
+
+        for (const employee of employees as any[]) {
+            const assignedShopId = typeof employee.assignedShopId === 'string' ? employee.assignedShopId : '';
+            if (!assignedShopId || !shopsById.has(assignedShopId)) {
+                unassignedEmployees.push(employee);
+                continue;
+            }
+
+            const bucket = employeesByShop.get(assignedShopId) || [];
+            bucket.push(employee);
+            employeesByShop.set(assignedShopId, bucket);
+        }
+
+        return {
+            shops: shops.map((shop: any) => ({
+                ...shop,
+                employees: employeesByShop.get(String(shop._id)) || [],
+            })),
+            unassignedEmployees,
+            employees,
+        };
+    }
+
+    async adminAssignEmployeeToShop(employeeId: string, shopId?: string | null) {
+        const employee = await this.userModel
+            .findOne({ _id: employeeId, role: 'employee' })
+            .select('-passwordHash -refreshTokenHash')
+            .exec();
+
+        if (!employee) {
+            throw new NotFoundException('Employee not found');
+        }
+
+        let normalizedShopId: string | null = null;
+
+        if (typeof shopId === 'string' && shopId.trim()) {
+            const incomingShopId = shopId.trim();
+            const shop = await this.shopModel.findById(incomingShopId).select('_id').lean().exec();
+            if (!shop) {
+                throw new NotFoundException('Shop not found');
+            }
+            normalizedShopId = incomingShopId;
+        }
+
+        const updated = await this.userModel
+            .findByIdAndUpdate(
+                employeeId,
+                { $set: { assignedShopId: normalizedShopId } },
+                { new: true },
+            )
+            .select('-passwordHash -refreshTokenHash')
+            .lean()
+            .exec();
+
+        return updated;
+    }
+
+    async employeeRequestJoinShop(employeeId: string, shopId: string) {
+        if (!Types.ObjectId.isValid(shopId)) {
+            throw new BadRequestException('Invalid shopId');
+        }
+
+        const [employee, shop] = await Promise.all([
+            this.userModel.findOne({ _id: employeeId, role: 'employee' }).exec(),
+            this.shopModel.findById(shopId).select('_id').lean().exec(),
+        ]);
+
+        if (!employee) {
+            throw new NotFoundException('Employee not found');
+        }
+        if (!shop) {
+            throw new NotFoundException('Shop not found');
+        }
+
+        if (employee.assignedShopId && employee.assignedShopId === shopId) {
+            return employee;
+        }
+
+        employee.joinRequestShopId = shopId;
+        employee.joinRequestStatus = 'pending';
+        await employee.save();
+
+        return this.userModel
+            .findById(employeeId)
+            .select('-passwordHash -refreshTokenHash')
+            .lean()
+            .exec();
+    }
+
+    async listEmployeeJoinRequestsForShop(shopId: string) {
+        if (!Types.ObjectId.isValid(shopId)) {
+            throw new BadRequestException('Invalid shopId');
+        }
+
+        return this.userModel
+            .find({ role: 'employee', joinRequestStatus: 'pending', joinRequestShopId: shopId })
+            .select('-passwordHash -refreshTokenHash')
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec();
+    }
+
+    async listEmployeeJoinRequestsForAdmin() {
+        const [requests, shops] = await Promise.all([
+            this.userModel
+                .find({ role: 'employee', joinRequestStatus: 'pending', joinRequestShopId: { $ne: null } })
+                .select('-passwordHash -refreshTokenHash')
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec(),
+            this.shopModel.find().select('_id shopName label').lean().exec(),
+        ]);
+
+        const shopById = new Map(shops.map((shop: any) => [String(shop._id), shop]));
+
+        return requests.map((item: any) => ({
+            ...item,
+            requestedShop: item.joinRequestShopId ? shopById.get(String(item.joinRequestShopId)) || null : null,
+        }));
+    }
+
+    async resolveEmployeeJoinRequest(
+        actorUserId: string,
+        employeeId: string,
+        action: 'approve' | 'reject',
+    ) {
+        const actor = await this.userModel.findById(actorUserId).exec();
+        if (!actor) {
+            throw new NotFoundException('Actor not found');
+        }
+
+        const employee = await this.userModel.findOne({ _id: employeeId, role: 'employee' }).exec();
+        if (!employee) {
+            throw new NotFoundException('Employee not found');
+        }
+
+        if (employee.joinRequestStatus !== 'pending' || !employee.joinRequestShopId) {
+            throw new BadRequestException('No pending join request for this employee');
+        }
+
+        const requestedShopId = employee.joinRequestShopId;
+        const canApprove = actor.role === 'admin' || (actor.role === 'employee' && actor.assignedShopId === requestedShopId);
+        if (!canApprove) {
+            throw new ForbiddenException('Not allowed to resolve this join request');
+        }
+
+        if (action === 'approve') {
+            employee.assignedShopId = requestedShopId;
+            employee.joinRequestShopId = null;
+            employee.joinRequestStatus = 'none';
+        } else {
+            employee.joinRequestStatus = 'rejected';
+        }
+
+        await employee.save();
+
+        return this.userModel
+            .findById(employeeId)
+            .select('-passwordHash -refreshTokenHash')
+            .lean()
+            .exec();
+    }
+
     async adminChangeUserRole(userId: string, role: UserRole) {
         const updated = await this.userModel
             .findByIdAndUpdate(userId, { $set: { role } }, { new: true })
@@ -173,6 +396,38 @@ export class UsersService {
             .exec();
         if (!updated) throw new NotFoundException('User not found');
         return updated;
+    }
+
+    async adminCreateEmployee(email: string, password: string) {
+        const normalizedEmail = (email || '').trim().toLowerCase();
+        if (!normalizedEmail) {
+            throw new BadRequestException('Email is required');
+        }
+
+        if (!password || password.trim().length < 8) {
+            throw new BadRequestException('Password must be at least 8 characters');
+        }
+
+        const existing = await this.userModel.findOne({ email: normalizedEmail }).lean().exec();
+        if (existing) {
+            throw new BadRequestException('Email already exists');
+        }
+
+        const passwordHash = await argon2.hash(password.trim());
+
+        const created = await this.userModel.create({
+            email: normalizedEmail,
+            passwordHash,
+            role: 'employee',
+        });
+
+        const safeUser = await this.userModel
+            .findById(created._id)
+            .select('-passwordHash -refreshTokenHash')
+            .lean()
+            .exec();
+
+        return safeUser;
     }
 
     async adminSetUserBan(userId: string, payload: { mode: BanMode; days?: number }) {
@@ -514,6 +769,175 @@ export class UsersService {
                 },
             },
         ]);
+    }
+
+    async riderHandoverToShop(orderId: string, riderId: string, shopId: string) {
+        if (!Types.ObjectId.isValid(shopId)) {
+            throw new BadRequestException('Invalid shopId');
+        }
+
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (!order.riderId || String(order.riderId) !== riderId) {
+            throw new BadRequestException('Order is not assigned to this rider');
+        }
+
+        if (!['picked_up', 'assigned'].includes(order.status)) {
+            throw new BadRequestException('Order is not ready for shop handover');
+        }
+
+        order.shopId = new Types.ObjectId(shopId) as any;
+        order.status = 'at_shop';
+        await order.save();
+
+        return order;
+    }
+
+    async riderStartDeliveryBack(orderId: string, riderId: string) {
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (!order.riderId || String(order.riderId) !== riderId) {
+            throw new BadRequestException('Order is not assigned to this rider');
+        }
+
+        if (order.status !== 'laundry_done') {
+            throw new BadRequestException('Laundry is not completed yet');
+        }
+
+        order.status = 'out_for_delivery';
+        await order.save();
+        return order;
+    }
+
+    async listNearbyShopsForEmployee(employeeId: string, lat?: number, lng?: number, maxDistanceKm = 8) {
+        const user = await this.userModel
+            .findById(employeeId)
+            .select('assignedShopId role')
+            .lean()
+            .exec() as any;
+
+        const assignedShopId = typeof user?.assignedShopId === 'string' ? user.assignedShopId : '';
+        const isAdminActor = user?.role === 'admin';
+        const isEmployeeActor = user?.role === 'employee';
+        const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+        if (isAdminActor || isEmployeeActor) {
+            if (hasCoords) {
+                const allShopsWithDistance = await this.shopModel.aggregate([
+                    {
+                        $geoNear: {
+                            near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+                            distanceField: 'distanceMeters',
+                            spherical: true,
+                        },
+                    },
+                    {
+                        $addFields: {
+                            distanceKm: { $round: [{ $divide: ['$distanceMeters', 1000] }, 2] },
+                        },
+                    },
+                ]);
+                return allShopsWithDistance;
+            }
+
+            return this.shopModel
+                .find()
+                .sort({ createdAt: -1 })
+                .lean()
+                .exec();
+        }
+
+        let nearbyShops: any[] = [];
+        if (hasCoords) {
+            const maxDistanceMeters = Math.max(0.2, maxDistanceKm) * 1000;
+            nearbyShops = await this.shopModel.aggregate([
+                {
+                    $geoNear: {
+                        near: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+                        distanceField: 'distanceMeters',
+                        maxDistance: maxDistanceMeters,
+                        spherical: true,
+                    },
+                },
+                {
+                    $addFields: {
+                        distanceKm: { $round: [{ $divide: ['$distanceMeters', 1000] }, 2] },
+                    },
+                },
+            ]);
+        }
+
+        if (!assignedShopId || !Types.ObjectId.isValid(assignedShopId)) {
+            return nearbyShops;
+        }
+
+        const alreadyIncluded = nearbyShops.some((item) => String(item?._id) === assignedShopId);
+        if (alreadyIncluded) {
+            return nearbyShops;
+        }
+
+        const assignedShop = await this.shopModel.findById(assignedShopId).lean().exec();
+        if (!assignedShop) {
+            return nearbyShops;
+        }
+
+        return [
+            {
+                ...assignedShop,
+                distanceKm: hasCoords ? null : null,
+            },
+            ...nearbyShops,
+        ];
+    }
+
+    async listEmployeeShopOrders(shopId: string) {
+        if (!Types.ObjectId.isValid(shopId)) {
+            throw new BadRequestException('Invalid shopId');
+        }
+
+        return this.orderModel
+            .find({ shopId: new Types.ObjectId(shopId) as any })
+            .populate('customerId', 'firstName lastName phoneNumber')
+            .populate('employeeId', 'firstName lastName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .exec();
+    }
+
+    async employeeStartWash(orderId: string, employeeId: string) {
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (!['at_shop', 'washing'].includes(order.status)) {
+            throw new BadRequestException('Order is not at shop');
+        }
+
+        order.employeeId = new Types.ObjectId(employeeId) as any;
+        order.status = 'washing';
+        if (!order.washingStartedAt) {
+            order.washingStartedAt = new Date();
+        }
+        await order.save();
+        return order;
+    }
+
+    async employeeFinishWash(orderId: string, employeeId: string) {
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (!['washing', 'at_shop'].includes(order.status)) {
+            throw new BadRequestException('Order is not in washing process');
+        }
+
+        order.employeeId = new Types.ObjectId(employeeId) as any;
+        order.status = 'laundry_done';
+        if (!order.washingStartedAt) {
+            order.washingStartedAt = new Date();
+        }
+        order.washingCompletedAt = new Date();
+        await order.save();
+        return order;
     }
 
 }

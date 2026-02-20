@@ -4,7 +4,7 @@ import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 
 import { AuthService } from './auth.service'; 
 
-import { AuthDto } from './dto/auth.dto'; 
+import { AuthDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto'; 
 
 import { AccessTokenGuard } from './guards/access-token.guard'; 
 
@@ -39,6 +39,18 @@ export class AuthController {
         return this.authService.signIn(dto); 
 
     } 
+
+    @Throttle({ default: { limit: 3, ttl: 60_000 } })
+    @Post('forgot-password')
+    forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(dto.email);
+    }
+
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
+    @Post('reset-password')
+    resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPassword(dto.token, dto.newPassword);
+    }
 
  
 

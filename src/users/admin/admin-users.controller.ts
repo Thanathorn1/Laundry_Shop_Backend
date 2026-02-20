@@ -1,7 +1,14 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Request, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { UsersService } from '../users.service';
-import { UserRole } from './schemas/user.schema';
+import {
+  AssignEmployeeShopDto,
+  ChangeUserPasswordDto,
+  ChangeUserRoleDto,
+  CreateEmployeeDto,
+  ResolveEmployeeJoinRequestDto,
+  SetUserBanDto,
+} from './dto/admin-users.dto';
 
 @Controller('customers/admin')
 export class AdminUsersController {
@@ -45,13 +52,65 @@ export class AdminUsersController {
   async changeUserRole(
     @Request() req: any,
     @Param('userId') userId: string,
-    @Body() body: { role: UserRole },
+    @Body() body: ChangeUserRoleDto,
   ) {
     await this.ensureAdmin(req);
-    if (!body?.role || !['user', 'rider', 'admin'].includes(body.role)) {
-      throw new BadRequestException('Invalid role');
-    }
     return this.usersService.adminChangeUserRole(userId, body.role);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('employees')
+  async listEmployeesForAdmin(@Request() req: any) {
+    await this.ensureAdmin(req);
+    return this.usersService.listUsersByRole('employee');
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Post('employees')
+  async createEmployeeForAdmin(
+    @Request() req: any,
+    @Body() body: CreateEmployeeDto,
+  ) {
+    await this.ensureAdmin(req);
+    return this.usersService.adminCreateEmployee(body.email, body.password);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('employees/by-shop')
+  async listEmployeesByShop(@Request() req: any) {
+    await this.ensureAdmin(req);
+    return this.usersService.listEmployeesByShop();
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Get('employees/join-requests')
+  async listEmployeeJoinRequests(@Request() req: any) {
+    await this.ensureAdmin(req);
+    return this.usersService.listEmployeeJoinRequestsForAdmin();
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Patch('employees/:employeeId/join-request')
+  async resolveEmployeeJoinRequest(
+    @Request() req: any,
+    @Param('employeeId') employeeId: string,
+    @Body() body: ResolveEmployeeJoinRequestDto,
+  ) {
+    await this.ensureAdmin(req);
+    const requesterId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    const action = body?.action;
+    return this.usersService.resolveEmployeeJoinRequest(requesterId, employeeId, action);
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Patch('employees/:employeeId/shop')
+  async assignEmployeeShop(
+    @Request() req: any,
+    @Param('employeeId') employeeId: string,
+    @Body() body: AssignEmployeeShopDto,
+  ) {
+    await this.ensureAdmin(req);
+    return this.usersService.adminAssignEmployeeToShop(employeeId, body?.shopId ?? null);
   }
 
   @UseGuards(AccessTokenGuard)
@@ -59,7 +118,7 @@ export class AdminUsersController {
   async setUserBan(
     @Request() req: any,
     @Param('userId') userId: string,
-    @Body() body: { mode?: 'unban' | 'permanent' | 'days'; days?: number; isBanned?: boolean },
+    @Body() body: SetUserBanDto,
   ) {
     await this.ensureAdmin(req);
     const fallbackMode = body?.isBanned === true ? 'permanent' : 'unban';
@@ -72,12 +131,9 @@ export class AdminUsersController {
   async changeUserPassword(
     @Request() req: any,
     @Param('userId') userId: string,
-    @Body() body: { password: string },
+    @Body() body: ChangeUserPasswordDto,
   ) {
     await this.ensureAdmin(req);
-    if (!body?.password) {
-      throw new BadRequestException('Password is required');
-    }
     return this.usersService.adminChangeUserPassword(userId, body.password);
   }
 

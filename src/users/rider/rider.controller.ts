@@ -16,7 +16,7 @@ export class RiderController {
         private readonly usersService: UsersService,
     ) { }
 
-    private async ensureRole(req: any, allowedRoles: Array<'user' | 'rider' | 'admin'>) {
+    private async ensureRole(req: any, allowedRoles: Array<'user' | 'rider' | 'admin' | 'employee'>) {
         const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
         if (!userId) throw new ForbiddenException('Unauthorized');
 
@@ -72,6 +72,22 @@ export class RiderController {
     ) {
         const riderId = await this.ensureRole(req, ['rider']);
         return this.riderService.updateStatus(orderId, riderId, status);
+    }
+
+    @Patch('handover/:id')
+    async handoverToShop(
+        @Param('id') orderId: string,
+        @Body('shopId') shopId: string,
+        @Req() req: any,
+    ) {
+        const riderId = await this.ensureRole(req, ['rider']);
+        return this.usersService.riderHandoverToShop(orderId, riderId, shopId);
+    }
+
+    @Patch('return-delivery/:id')
+    async startReturnDelivery(@Param('id') orderId: string, @Req() req: any) {
+        const riderId = await this.ensureRole(req, ['rider']);
+        return this.usersService.riderStartDeliveryBack(orderId, riderId);
     }
 
     @Delete('profile')
