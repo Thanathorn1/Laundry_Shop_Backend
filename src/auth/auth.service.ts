@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { AuthDto } from './dto/auth.dto';
+import { SignInDto, SignUpDto } from './dto/auth.dto';
 import * as argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
@@ -122,12 +122,15 @@ export class AuthService {
         return { success: true, message: 'Password reset successful' };
     }
 
-    async signUp(dto: AuthDto) {
+    async signUp(dto: SignUpDto) {
         const email = this.normalizeEmail(dto.email);
         const userExists = await this.usersService.findByEmail(email);
 
         if (userExists) throw new BadRequestException('Email นี้ถูกใช้งานแล้ว');
         if (dto.role === 'admin') throw new BadRequestException('ไม่สามารถสมัครบัญชีแอดมินผ่านหน้านี้ได้');
+        if (dto.password !== dto.confirmPassword) {
+            throw new BadRequestException('Password confirmation does not match');
+        }
 
         const passwordHash = await argon2.hash(dto.password);
         const signupRole = dto.role === 'rider' || dto.role === 'employee' ? dto.role : 'user';
@@ -136,6 +139,9 @@ export class AuthService {
             email,
             passwordHash,
             role: signupRole,
+            firstName: dto.firstName.trim(),
+            lastName: dto.lastName.trim(),
+            phoneNumber: dto.phoneNumber.trim(),
         });
 
         const tokens = await this.signTokens({ id: String(newUser._id), email: newUser.email, role: newUser.role });
@@ -143,7 +149,7 @@ export class AuthService {
         return tokens;
     }
 
-    async signIn(dto: AuthDto) {
+    async signIn(dto: SignInDto) {
         const email = this.normalizeEmail(dto.email);
 
         const user = await this.usersService.findByEmailWithAuthSecrets(email);

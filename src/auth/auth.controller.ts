@@ -4,7 +4,7 @@ import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 
 import { AuthService } from './auth.service'; 
 
-import { AuthDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto'; 
+import { ForgotPasswordDto, ResetPasswordDto, SignInDto, SignUpDto } from './dto/auth.dto'; 
 
 import { AccessTokenGuard } from './guards/access-token.guard'; 
 
@@ -24,7 +24,7 @@ export class AuthController {
 
     @Post('signup') 
 
-    signup(@Body() dto: AuthDto) { 
+    signup(@Body() dto: SignUpDto) { 
 
         return this.authService.signUp(dto); 
 
@@ -34,7 +34,7 @@ export class AuthController {
 
     @Post('signin') 
 
-    signin(@Body() dto: AuthDto) { 
+    signin(@Body() dto: SignInDto) { 
 
         return this.authService.signIn(dto); 
 

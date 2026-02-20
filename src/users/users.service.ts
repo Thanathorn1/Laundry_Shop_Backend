@@ -114,7 +114,14 @@ export class UsersService {
 
     // สร้างผู้ใช้ใหม่ โดยกำหนด role ได้ 
 
-    create(data: { email: string; passwordHash: string; role?: UserRole }) { 
+    create(data: {
+        email: string;
+        passwordHash: string;
+        role?: UserRole;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+    }) { 
 
         return this.userModel.create({ 
 
@@ -123,6 +130,12 @@ export class UsersService {
             passwordHash: data.passwordHash, 
 
             role: data.role ?? 'user', 
+
+            firstName: data.firstName ?? '',
+
+            lastName: data.lastName ?? '',
+
+            phoneNumber: data.phoneNumber ?? '',
 
         }); 
 
