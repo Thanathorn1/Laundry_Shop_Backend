@@ -5,11 +5,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose'; 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as argon2 from 'argon2';
 import { User, UserDocument, UserRole } from './admin/schemas/user.schema';
 import { Customer, CustomerDocument } from './customer/schemas/customer.schema';
 import { Review, ReviewDocument } from './customer/schemas/review.schema';
 import { Order, OrderDocument } from './customer/schemas/order.schema';
 import { CreateCustomerDto } from './customer/dto/create-customer.dto'; 
+
+type BanMode = 'unban' | 'permanent' | 'days';
 
  
 
@@ -81,6 +84,13 @@ export class UsersService {
 
     } 
 
+    findByEmailWithAuthSecrets(email: string) {
+        return this.userModel
+            .findOne({ email })
+            .select('+passwordHash +refreshTokenHash isBanned banStartAt banEndAt')
+            .exec();
+    }
+
  
 
     // ใช้ตอน refresh: ต้องดึง refreshTokenHash 
@@ -133,12 +143,110 @@ export class UsersService {
         return this.userModel.findById(userId).exec();
     }
 
-    listUsersByRole(role: UserRole) {
-        return this.userModel
+    async listUsersByRole(role: UserRole) {
+        const users = await this.userModel
             .find({ role })
             .select('-passwordHash -refreshTokenHash')
             .sort({ createdAt: -1 })
             .exec();
+
+        const now = new Date();
+        for (const user of users) {
+            if (user.isBanned && user.banEndAt && user.banEndAt <= now) {
+                await this.userModel.updateOne(
+                    { _id: user._id },
+                    { $set: { isBanned: false, banStartAt: null, banEndAt: null } },
+                ).exec();
+                user.isBanned = false;
+                user.banStartAt = null;
+                user.banEndAt = null;
+            }
+        }
+
+        return users;
+    }
+
+    async adminChangeUserRole(userId: string, role: UserRole) {
+        const updated = await this.userModel
+            .findByIdAndUpdate(userId, { $set: { role } }, { new: true })
+            .select('-passwordHash -refreshTokenHash')
+            .exec();
+        if (!updated) throw new NotFoundException('User not found');
+        return updated;
+    }
+
+    async adminSetUserBan(userId: string, payload: { mode: BanMode; days?: number }) {
+        const now = new Date();
+        let updateData: any;
+
+        if (payload.mode === 'unban') {
+            updateData = { isBanned: false, banStartAt: null, banEndAt: null };
+        } else if (payload.mode === 'permanent') {
+            updateData = { isBanned: true, banStartAt: now, banEndAt: null };
+        } else {
+            const days = Number(payload.days);
+            if (!Number.isFinite(days) || days <= 0) {
+                throw new BadRequestException('Days must be a number greater than 0');
+            }
+            const banEndAt = new Date(now.getTime() + Math.floor(days) * 24 * 60 * 60 * 1000);
+            updateData = { isBanned: true, banStartAt: now, banEndAt };
+        }
+
+        const updated = await this.userModel
+            .findByIdAndUpdate(userId, { $set: updateData }, { new: true })
+            .select('-passwordHash -refreshTokenHash')
+            .exec();
+        if (!updated) throw new NotFoundException('User not found');
+        return updated;
+    }
+
+    async enforceBanStateForSignIn(user: UserDocument) {
+        if (!user.isBanned) return false;
+
+        if (user.banEndAt && new Date(user.banEndAt) <= new Date()) {
+            await this.userModel.updateOne(
+                { _id: user._id },
+                { $set: { isBanned: false, banStartAt: null, banEndAt: null } },
+            ).exec();
+            return false;
+        }
+
+        return true;
+    }
+
+    async adminChangeUserPassword(userId: string, newPassword: string) {
+        if (!newPassword || newPassword.trim().length < 8) {
+            throw new BadRequestException('Password must be at least 8 characters');
+        }
+
+        const passwordHash = await argon2.hash(newPassword.trim());
+        const updated = await this.userModel
+            .findByIdAndUpdate(
+                userId,
+                { $set: { passwordHash, refreshTokenHash: null } },
+                { new: true },
+            )
+            .select('-passwordHash -refreshTokenHash')
+            .exec();
+        if (!updated) throw new NotFoundException('User not found');
+        return { success: true, user: updated };
+    }
+
+    async adminDeleteUser(userId: string) {
+        const deletedUser = await this.userModel.findByIdAndDelete(userId).exec();
+        if (!deletedUser) throw new NotFoundException('User not found');
+
+        const customer = await this.customerModel.findOneAndDelete({ userId: deletedUser._id as any }).exec();
+        await this.customerModel.findOneAndDelete({ userId: String(deletedUser._id) as any }).exec();
+        await this.orderModel.deleteMany({ customerId: deletedUser._id as any }).exec();
+        await this.orderModel.deleteMany({ customerId: String(deletedUser._id) as any }).exec();
+
+        if (customer?._id) {
+            await this.reviewModel.deleteMany({ customerId: customer._id as any }).exec();
+            await this.reviewModel.deleteMany({ customerId: String(customer._id) as any }).exec();
+        }
+
+        return { success: true };
     }
 
     async upsertUserProfile(userId: string, data: Partial<CreateCustomerDto>) {

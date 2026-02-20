@@ -25,6 +25,15 @@ export class User {
 
     role: UserRole; 
 
+    @Prop({ type: Boolean, default: false })
+    isBanned: boolean;
+
+    @Prop({ type: Date, default: null })
+    banStartAt?: Date | null;
+
+    @Prop({ type: Date, default: null })
+    banEndAt?: Date | null;
+
      
 
     @Prop({ type: String, select: false, default: null }) 

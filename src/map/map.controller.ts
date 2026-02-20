@@ -1,10 +1,26 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
 import { MapService } from './map.service';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { UsersService } from '../users/users.service';
 
 @Controller()
 export class MapController {
-  constructor(private readonly mapService: MapService) {}
+  constructor(
+    private readonly mapService: MapService,
+    private readonly usersService: UsersService,
+  ) {}
+
+  private async ensureAdmin(req: any) {
+    const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    if (!userId) {
+      throw new ForbiddenException('Admin only');
+    }
+
+    const user = await this.usersService.findUserById(userId);
+    if (!user || user.role !== 'admin') {
+      throw new ForbiddenException('Admin only');
+    }
+  }
 
   @Post('map/distance')
   distance(@Body() body: any) {
@@ -48,9 +64,7 @@ export class MapController {
   @UseGuards(AccessTokenGuard)
   @Post('map/shops')
   async createShop(@Request() req: any, @Body() body: any) {
-    if (req?.user?.role !== 'admin') {
-      throw new ForbiddenException('Admin only');
-    }
+    await this.ensureAdmin(req);
 
     const location = body?.location;
     if (!location) {
@@ -64,18 +78,14 @@ export class MapController {
   @UseGuards(AccessTokenGuard)
   @Get('map/shops')
   async listShops(@Request() req: any) {
-    if (req?.user?.role !== 'admin') {
-      throw new ForbiddenException('Admin only');
-    }
+    await this.ensureAdmin(req);
     return this.mapService.listShopPins();
   }
 
   @UseGuards(AccessTokenGuard)
   @Put('map/shops/:shopId')
   async updateShop(@Request() req: any, @Param('shopId') shopId: string, @Body() body: any) {
-    if (req?.user?.role !== 'admin') {
-      throw new ForbiddenException('Admin only');
-    }
+    await this.ensureAdmin(req);
 
     const updated = await this.mapService.updateShopPin(shopId, body);
     if (!updated) throw new NotFoundException('Shop not found');
@@ -85,9 +95,7 @@ export class MapController {
   @UseGuards(AccessTokenGuard)
   @Delete('map/shops/:shopId')
   async deleteShop(@Request() req: any, @Param('shopId') shopId: string) {
-    if (req?.user?.role !== 'admin') {
-      throw new ForbiddenException('Admin only');
-    }
+    await this.ensureAdmin(req);
 
     const deleted = await this.mapService.deleteShopPin(shopId);
     if (!deleted) throw new NotFoundException('Shop not found');
