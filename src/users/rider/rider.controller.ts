@@ -1,78 +1,88 @@
 import { Controller, Get, Patch, Post, Param, Body, UseGuards, Req, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { RiderService } from './rider.service';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RiderProfileDto } from './dto/rider-profile.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { Delete } from '@nestjs/common';
+import { Delete, ForbiddenException } from '@nestjs/common';
+import { UsersService } from '../users.service';
 
 @Controller('rider')
-@UseGuards(AccessTokenGuard, RolesGuard)
-@Roles('rider', 'admin') // อนุญาตทั้ง Rider และ Admin ให้เข้าถึงเบื้องต้น
+@UseGuards(AccessTokenGuard)
 export class RiderController {
-    constructor(private readonly riderService: RiderService) { }
+    constructor(
+        private readonly riderService: RiderService,
+        private readonly usersService: UsersService,
+    ) { }
+
+    private async ensureRole(req: any, allowedRoles: Array<'user' | 'rider' | 'admin'>) {
+        const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+        if (!userId) throw new ForbiddenException('Unauthorized');
+
+        const user = await this.usersService.findUserById(userId);
+        if (!user || !allowedRoles.includes(user.role as any)) {
+            throw new ForbiddenException('ไม่อนุญาตให้เข้าถึงข้อมูลส่วนนี้');
+        }
+
+        return userId;
+    }
 
     @Get('profile')
-    getProfile(@Req() req: any) {
-        const riderId = req.user.userId;
+    async getProfile(@Req() req: any) {
+        const riderId = await this.ensureRole(req, ['rider', 'admin']);
         return this.riderService.getProfile(riderId);
     }
 
     @Get('list')
-    @Roles('admin') // เฉพาะ Admin เท่านั้นที่ดูรายชื่อ Rider ทั้งหมดได้
-    getAllRiders() {
+    async getAllRiders(@Req() req: any) {
+        await this.ensureRole(req, ['admin']);
         return this.riderService.findAllRiders();
     }
 
     @Get('available')
-    @Roles('rider', 'admin')
-    getAvailableOrders() {
+    async getAvailableOrders(@Req() req: any) {
+        await this.ensureRole(req, ['rider', 'admin']);
         return this.riderService.findAvailableOrders();
     }
 
     @Get('my-tasks')
-    @Roles('rider', 'admin')
-    getMyTasks(@Req() req: any) {
-        const riderId = req.user.userId;
+    async getMyTasks(@Req() req: any) {
+        const riderId = await this.ensureRole(req, ['rider', 'admin']);
         return this.riderService.findRiderTasks(riderId);
     }
 
     @Get(':id')
-    getRiderById(@Param('id') id: string) {
+    async getRiderById(@Req() req: any, @Param('id') id: string) {
+        await this.ensureRole(req, ['rider', 'admin']);
         return this.riderService.findRiderById(id);
     }
 
     @Patch('accept/:id')
-    @Roles('rider')
-    acceptOrder(@Param('id') orderId: string, @Req() req: any) {
-        const riderId = req.user.userId;
+    async acceptOrder(@Param('id') orderId: string, @Req() req: any) {
+        const riderId = await this.ensureRole(req, ['rider']);
         return this.riderService.acceptOrder(orderId, riderId);
     }
 
     @Patch('status/:id')
-    @Roles('rider')
-    updateStatus(
+    async updateStatus(
         @Param('id') orderId: string,
         @Body('status') status: string,
         @Req() req: any,
     ) {
-        const riderId = req.user.userId;
+        const riderId = await this.ensureRole(req, ['rider']);
         return this.riderService.updateStatus(orderId, riderId, status);
     }
 
     @Delete('profile')
-    @Roles('rider')
-    deleteMyProfile(@Req() req: any) {
-        const riderId = req.user.userId;
+    async deleteMyProfile(@Req() req: any) {
+        const riderId = await this.ensureRole(req, ['rider']);
         return this.riderService.deleteProfile(riderId);
     }
 
     @Delete('profile/:id')
-    @Roles('rider', 'admin')
-    deleteProfileById(@Param('id') id: string) {
+    async deleteProfileById(@Req() req: any, @Param('id') id: string) {
+        await this.ensureRole(req, ['rider', 'admin']);
         return this.riderService.deleteProfile(id);
     }
 

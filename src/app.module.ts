@@ -8,6 +8,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MapModule } from './map/map.module';
+import { RiderModule } from './users/rider/rider.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'; 
 
 import { APP_GUARD } from '@nestjs/core'; 
@@ -45,7 +46,7 @@ import { APP_GUARD } from '@nestjs/core';
 
     }), 
 
-  }), UsersModule, AuthModule, MapModule], 
+  }), UsersModule, AuthModule, MapModule, RiderModule], 
 
 
 

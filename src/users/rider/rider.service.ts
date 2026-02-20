@@ -168,11 +168,11 @@ export class RiderService {
     }
 
     async findAvailableOrders(): Promise<OrderDocument[]> {
-        return this.orderModel.find({ status: 'pending', rider: { $exists: false } }).populate('customer', 'email').exec();
+        return this.orderModel.find({ status: 'pending', rider: { $exists: false } }).exec();
     }
 
     async findRiderTasks(riderId: string): Promise<OrderDocument[]> {
-        return this.orderModel.find({ rider: new Types.ObjectId(riderId) }).populate('customer', 'email').exec();
+        return this.orderModel.find({ rider: new Types.ObjectId(riderId) }).exec();
     }
 
     async acceptOrder(orderId: string, riderId: string): Promise<OrderDocument> {
@@ -218,7 +218,7 @@ export class RiderService {
 
         if (profile.riderImageUrl) {
             this.deleteFile(profile.riderImageUrl);
-            profile.riderImageUrl = null;
+            profile.riderImageUrl = '';
             await profile.save();
         }
 
