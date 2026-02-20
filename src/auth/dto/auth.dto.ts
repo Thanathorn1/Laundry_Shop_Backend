@@ -1,18 +1,20 @@
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, MinLength } from 'class-validator'; 
 
+ 
 
+export class AuthDto { 
 
-export class AuthDto {
+    @IsEmail({}, { message: 'รูปแบบอีเมลไม่ถูกต้อง' }) 
 
-    @IsEmail({}, { message: 'รูปแบบอีเมลไม่ถูกต้อง' })
+    email: string; 
 
-    email: string;
+ 
 
-    @IsNotEmpty()
+    @IsNotEmpty() 
 
-    @MinLength(8, { message: 'รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร' })
+    @MinLength(8, { message: 'รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร' }) 
 
-    password: string;
+    password: string; 
 
     @IsOptional()
     @IsIn(['user', 'admin', 'rider'])

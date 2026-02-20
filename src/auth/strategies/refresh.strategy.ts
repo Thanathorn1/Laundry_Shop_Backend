@@ -1,52 +1,53 @@
 // src/auth/strategies/refrech.strategy.ts 
 
-import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';  
 
-import { PassportStrategy } from '@nestjs/passport';
+import { PassportStrategy } from '@nestjs/passport'; 
 
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ExtractJwt, Strategy } from 'passport-jwt'; 
 
-import { ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config'; 
 
+ 
 
+type JwtPayload = { sub: string; email: string; role: string }; 
 
-type JwtPayload = { sub: string; email: string; role: string };
+ 
 
+@Injectable() 
 
+export class RefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') { 
 
-@Injectable()
+    constructor(config: ConfigService) { 
 
-export class RefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+        super({ 
 
-    constructor(config: ConfigService) {
+            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), 
 
-        super({
+            ignoreExpiration: false, 
 
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            secretOrKey: config.getOrThrow<string>('JWT_REFRESH_SECRET'), 
 
-            ignoreExpiration: false,
+            passReqToCallback: true, 
 
-            secretOrKey: config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        }); 
 
-            passReqToCallback: true,
+    } 
 
-        });
-
-    }
-
-
+ 
 
     // เพิ่ม req เป็นพารามิเตอร์ในฟังก์ชัน validate 
 
-    validate(req: any, payload: JwtPayload) {
+    validate(req: any, payload: JwtPayload) { 
 
-        const authHeader = req.get('authorization') as string | undefined;
+        const authHeader = req.get('authorization') as string | undefined; 
 
-        const refreshToken = authHeader?.replace('Bearer', '').trim();
+        const refreshToken = authHeader?.replace('Bearer', '').trim(); 
 
-        return { userId: payload.sub, email: payload.email, role: payload.role, refreshToken };
+        return { ...payload, refreshToken }; 
 
-    }
+    } 
 
-}
+} 
 
+ 

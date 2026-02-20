@@ -115,19 +115,18 @@ export class AuthService {
 
  
 
-        const user = await this.usersService.findByEmailWithSecrets(email); 
+        const user = await this.usersService.findByEmailWithAuthSecrets(email); 
 
         if (!user) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง'); 
+
+        const isCurrentlyBanned = await this.usersService.enforceBanStateForSignIn(user as any);
+        if (isCurrentlyBanned) throw new ForbiddenException('บัญชีนี้ถูกระงับการใช้งาน');
 
  
 
         const passwordMatches = await argon2.verify(user.passwordHash, dto.password); 
 
         if (!passwordMatches) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง'); 
-
-        if (dto.role && dto.role !== user.role) {
-            throw new UnauthorizedException('บัญชีนี้ไม่ตรงกับประเภทผู้ใช้ที่เลือก');
-        }
 
  
 

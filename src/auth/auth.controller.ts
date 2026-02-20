@@ -1,77 +1,77 @@
 // src/auth/auth.controller.ts 
 
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common'; 
 
-import { AuthService } from './auth.service';
+import { AuthService } from './auth.service'; 
 
-import { AuthDto } from './dto/auth.dto';
+import { AuthDto } from './dto/auth.dto'; 
 
-import { AccessTokenGuard } from './guards/access-token.guard';
+import { AccessTokenGuard } from './guards/access-token.guard'; 
 
-import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { RefreshTokenGuard } from './guards/refresh-token.guard'; 
 
-import { Throttle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler'; 
 
+ 
 
+@Controller('auth') 
 
-@Controller('auth')
+export class AuthController { 
 
-export class AuthController {
+    constructor(private authService: AuthService) { } 
 
-    constructor(private authService: AuthService) { }
+ 
 
+    @Post('signup') 
 
+    signup(@Body() dto: AuthDto) { 
 
-    @Post('signup')
+        return this.authService.signUp(dto); 
 
-    signup(@Body() dto: AuthDto) {
+    } 
 
-        return this.authService.signUp(dto);
+    @Throttle({ default: { limit: 5, ttl: 60_000 } }) 
 
-    }
+    @Post('signin') 
 
-    @Throttle({ default: { limit: 5, ttl: 60_000 } })
+    signin(@Body() dto: AuthDto) { 
 
-    @Post('signin')
+        return this.authService.signIn(dto); 
 
-    signin(@Body() dto: AuthDto) {
+    } 
 
-        return this.authService.signIn(dto);
+ 
 
-    }
+    @UseGuards(AccessTokenGuard) 
 
+    @Get('profile') 
 
+    getProfile(@Req() req: any) { 
 
-    @UseGuards(AccessTokenGuard)
+        return req.user; 
 
-    @Get('profile')
+    } 
+        @UseGuards(RefreshTokenGuard) 
 
-    getProfile(@Req() req: any) {
+    @Post('refresh') 
 
-        return req.user;
+    refresh(@Req() req: any) { 
 
-    }
-    @UseGuards(RefreshTokenGuard)
+        const { sub: userId, email, role, refreshToken } = req.user; 
 
-    @Post('refresh')
+        return this.authService.refreshTokens(userId, email, role, refreshToken); 
 
-    refresh(@Req() req: any) {
+    } 
 
-        const { userId, email, role, refreshToken } = req.user;
+ 
 
-        return this.authService.refreshTokens(userId, email, role, refreshToken);
+    @UseGuards(AccessTokenGuard) 
 
-    }
+    @Post('logout') 
 
+    logout(@Req() req: any) { 
 
+        return this.authService.logout(req.user.userId); 
 
-    @UseGuards(AccessTokenGuard)
-
-    @Post('logout')
-
-    logout(@Req() req: any) {
-
-        return this.authService.logout(req.user.userId);
-
-    }
+    } 
 } 
