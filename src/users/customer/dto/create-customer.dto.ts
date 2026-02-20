@@ -1,9 +1,11 @@
-import { IsEmail, IsString, IsPhoneNumber, IsOptional, IsNumber, Min, Max, IsArray } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsNumber, Min, Max, IsArray } from 'class-validator';
 
 export class CreateCustomerDto {
+  @IsOptional()
   @IsEmail()
   email: string;
 
+  @IsOptional()
   @IsString()
   password: string;
 
@@ -13,7 +15,7 @@ export class CreateCustomerDto {
   @IsString()
   lastName: string;
 
-  @IsPhoneNumber('TH') // Thailand phone number
+  @IsString()
   phoneNumber: string;
 
   @IsOptional()
@@ -43,7 +45,7 @@ export class UpdateCustomerDto {
   lastName?: string;
 
   @IsOptional()
-  @IsPhoneNumber('TH')
+  @IsString()
   phoneNumber?: string;
 
   @IsOptional()
