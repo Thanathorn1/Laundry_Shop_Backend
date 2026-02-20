@@ -3,12 +3,13 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose'; 
 
 import { Model, Types } from 'mongoose'; 
-
+import * as fs from 'fs';
+import * as path from 'path';
 import { User, UserDocument, UserRole } from './admin/schemas/user.schema';
-import { Customer, CustomerDocument } from './admin/schemas/customer.schema';
-import { Review, ReviewDocument } from './admin/schemas/review.schema';
-import { Order, OrderDocument } from './admin/schemas/order.schema';
-import { CreateCustomerDto } from './admin/dto/create-customer.dto'; 
+import { Customer, CustomerDocument } from './customer/schemas/customer.schema';
+import { Review, ReviewDocument } from './customer/schemas/review.schema';
+import { Order, OrderDocument } from './customer/schemas/order.schema';
+import { CreateCustomerDto } from './customer/dto/create-customer.dto'; 
 
  
 
@@ -22,6 +23,47 @@ export class UsersService {
         @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     ) { } 
+
+    private ensureCustomerOrderUploadDir(): string {
+        const uploadDir = path.join(process.cwd(), 'uploads', 'customerorder');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        return uploadDir;
+    }
+
+    private dataUrlToFileExt(mimeType: string): string {
+        if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') return 'jpg';
+        if (mimeType === 'image/png') return 'png';
+        if (mimeType === 'image/webp') return 'webp';
+        if (mimeType === 'image/gif') return 'gif';
+        return 'jpg';
+    }
+
+    private persistOrderImages(images?: string[]): string[] {
+        if (!Array.isArray(images) || images.length === 0) return [];
+
+        const uploadDir = this.ensureCustomerOrderUploadDir();
+
+        return images.map((imageValue) => {
+            if (typeof imageValue !== 'string') return imageValue as any;
+
+            const dataUrlMatch = imageValue.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+            if (!dataUrlMatch) {
+                return imageValue;
+            }
+
+            const mimeType = dataUrlMatch[1];
+            const base64Payload = dataUrlMatch[2];
+            const ext = this.dataUrlToFileExt(mimeType);
+            const fileName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+            const absolutePath = path.join(uploadDir, fileName);
+
+            fs.writeFileSync(absolutePath, Buffer.from(base64Payload, 'base64'));
+
+            return `/uploads/customerorder/${fileName}`;
+        });
+    }
 
  
 
@@ -257,7 +299,7 @@ export class UsersService {
 
     // ===== ORDER METHODS =====
 
-    createOrder(customerId: string, data: any) {
+    async createOrder(customerId: string, data: any) {
         const pickupLocation = {
             type: 'Point' as const,
             coordinates: [data.pickupLongitude, data.pickupLatitude],
@@ -268,12 +310,14 @@ export class UsersService {
             coordinates: [data.deliveryLongitude, data.deliveryLatitude],
         } : undefined;
 
+        const savedImages = this.persistOrderImages(data.images);
+
         return this.orderModel.create({
             customerId: Types.ObjectId.isValid(customerId) ? new Types.ObjectId(customerId) : (customerId as any),
             productName: data.productName,
             contactPhone: data.contactPhone || '',
             description: data.description || '',
-            images: data.images || [],
+            images: savedImages,
             pickupLocation,
             pickupAddress: data.pickupAddress || null,
             pickupType: data.pickupType || 'now',
@@ -288,11 +332,11 @@ export class UsersService {
         return this.orderModel.findById(orderId).exec();
     }
 
-    updateOrder(orderId: string, data: any) {
+    async updateOrder(orderId: string, data: any) {
         const updateData: any = {};
         if (data.productName) updateData.productName = data.productName;
         if (data.description !== undefined) updateData.description = data.description;
-        if (data.images !== undefined) updateData.images = data.images;
+        if (data.images !== undefined) updateData.images = this.persistOrderImages(data.images);
         if (data.contactPhone) updateData.contactPhone = data.contactPhone;
         if (data.pickupAddress !== undefined) updateData.pickupAddress = data.pickupAddress;
         if (data.pickupType) updateData.pickupType = data.pickupType;

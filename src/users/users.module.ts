@@ -3,12 +3,11 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose'; 
 
 import { UsersService } from './users.service'; 
-
 import { User, UserSchema } from './admin/schemas/user.schema';
-import { Customer, CustomerSchema } from './admin/schemas/customer.schema';
-import { Review, ReviewSchema } from './admin/schemas/review.schema';
-import { Order, OrderSchema } from './admin/schemas/order.schema';
-import { CustomersController } from './customers.controller';
+import { Customer, CustomerSchema } from './customer/schemas/customer.schema';
+import { Review, ReviewSchema } from './customer/schemas/review.schema';
+import { Order, OrderSchema } from './customer/schemas/order.schema';
+import { CustomersController } from './customer/customers.controller';
 import { AdminUsersController } from './admin/admin-users.controller';
 
 @Module({ 
