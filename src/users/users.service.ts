@@ -5,6 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as argon2 from 'argon2';
 
 import { User, UserDocument, UserRole } from './schemas/user.schema';
 import { Customer, CustomerDocument } from './customer/schemas/customer.schema';
@@ -407,6 +408,38 @@ export class UsersService {
                 },
             },
         ]);
+    }
+
+    async adminChangeUserRole(userId: string, role: UserRole) {
+        return this.userModel.findByIdAndUpdate(userId, { role }, { new: true }).exec();
+    }
+
+    async adminSetUserBan(userId: string, config: { mode: 'unban' | 'permanent' | 'days'; days?: number }) {
+        let status: 'active' | 'banned' = 'banned';
+        let banExpiresAt: Date | null = null;
+
+        if (config.mode === 'unban') {
+            status = 'active';
+            banExpiresAt = null;
+        } else if (config.mode === 'days' && config.days) {
+            banExpiresAt = new Date();
+            banExpiresAt.setDate(banExpiresAt.getDate() + config.days);
+        } else {
+            // permanent
+            banExpiresAt = new Date(8640000000000000); // Far future
+        }
+
+        return this.userModel.findByIdAndUpdate(userId, { status, banExpiresAt }, { new: true }).exec();
+    }
+
+    async adminChangeUserPassword(userId: string, password: string) {
+        const passwordHash = await argon2.hash(password);
+        return this.userModel.findByIdAndUpdate(userId, { passwordHash }, { new: true }).exec();
+    }
+
+    async adminDeleteUser(userId: string) {
+        // Option to delete related data (Customer, Order, etc.) could be added here
+        return this.userModel.findByIdAndDelete(userId).exec();
     }
 
 }

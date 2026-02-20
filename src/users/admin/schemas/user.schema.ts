@@ -1,35 +1,44 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'; 
 
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument } from 'mongoose'; 
 
+ 
 
-
-export type UserDocument = HydratedDocument<User>;
+export type UserDocument = HydratedDocument<User>; 
 export type UserRole = 'user' | 'admin' | 'rider';  // สามารถกำหนดประเภทผู้ใช้ในฐานข้อมูลได้ 
+ 
 
+@Schema({ timestamps: true }) 
 
-@Schema({ timestamps: true })
+export class User { 
 
-export class User {
+    @Prop({ required: true, unique: true, lowercase: true, trim: true, index: true }) 
 
-    @Prop({ required: true, unique: true, lowercase: true, trim: true, index: true })
+    email: string; 
 
-    email: string;
+ 
 
+    @Prop({ required: true, select: false }) 
 
+    passwordHash: string; 
+    @Prop({ required: true, enum: ['user', 'admin', 'rider'], default: 'user' }) 
 
-    @Prop({ required: true, select: false })
+    role: UserRole; 
 
-    passwordHash: string;
-    @Prop({ required: true, enum: ['user', 'admin', 'rider'], default: 'user' })
+    @Prop({ type: Boolean, default: false })
+    isBanned: boolean;
 
-    role: UserRole;
+    @Prop({ type: Date, default: null })
+    banStartAt?: Date | null;
 
+    @Prop({ type: Date, default: null })
+    banEndAt?: Date | null;
 
+     
 
-    @Prop({ type: String, select: false, default: null })
+    @Prop({ type: String, select: false, default: null }) 
 
-    refreshTokenHash?: string | null;
+    refreshTokenHash?: string | null; 
 
     @Prop({ type: String, trim: true, default: '' })
     firstName?: string;
@@ -87,13 +96,8 @@ export class User {
     }>;
 
 
-    @Prop({ type: String, enum: ['active', 'banned'], default: 'active' })
-    status?: 'active' | 'banned';
+} 
 
-    @Prop({ type: Date, default: null })
-    banExpiresAt?: Date | null;
-}
-
-
+ 
 
 export const UserSchema = SchemaFactory.createForClass(User); 
