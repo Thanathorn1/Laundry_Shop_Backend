@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Customer } from './customer.schema';
 
-export type OrderDocument = HydratedDocument<Order>;
+export type OrderDocument = HydratedDocument<Order & { createdAt: Date; updatedAt: Date }>;
 
 @Schema({ collection: 'customerorders', timestamps: true })
 export class Order {
@@ -69,6 +69,25 @@ export class Order {
 
   @Prop({ type: Date, default: null })
   completedAt: Date | null;
+
+  @Prop({ type: Boolean, default: false })
+  hasRating: boolean;
+
+  @Prop({
+    type: {
+      merchantRating: { type: Number, min: 1, max: 5 },
+      riderRating: { type: Number, min: 1, max: 5 },
+      merchantComment: String,
+      riderComment: String,
+    },
+    default: null,
+  })
+  rating?: {
+    merchantRating: number;
+    riderRating: number;
+    merchantComment?: string;
+    riderComment?: string;
+  } | null;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

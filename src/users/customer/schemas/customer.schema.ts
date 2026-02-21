@@ -18,6 +18,9 @@ export class Customer {
   @Prop({ required: true, unique: true })
   phoneNumber: string;
 
+  @Prop({ type: Boolean, default: false })
+  phoneVerified: boolean;
+
   @Prop({ type: String, default: null })
   profileImage: string | null;
 

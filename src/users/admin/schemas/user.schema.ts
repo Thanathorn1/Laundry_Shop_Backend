@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 
  
 
-export type UserDocument = HydratedDocument<User>; 
+export type UserDocument = HydratedDocument<User & { createdAt: Date; updatedAt: Date }>; 
 export type UserRole = 'user' | 'admin' | 'rider';  // สามารถกำหนดประเภทผู้ใช้ในฐานข้อมูลได้ 
  
 
@@ -48,6 +48,9 @@ export class User {
 
     @Prop({ type: String, default: '' })
     phoneNumber?: string;
+
+    @Prop({ type: Boolean, default: false })
+    phoneVerified?: boolean;
 
     @Prop({ type: String, default: null })
     profileImage?: string | null;

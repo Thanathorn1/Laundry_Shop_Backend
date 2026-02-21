@@ -1,8 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common'; 
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 
-import { InjectModel } from '@nestjs/mongoose'; 
+import { InjectModel } from '@nestjs/mongoose';
 
-import { Model, Types } from 'mongoose'; 
+import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as argon2 from 'argon2';
@@ -10,22 +10,24 @@ import { User, UserDocument, UserRole } from './admin/schemas/user.schema';
 import { Customer, CustomerDocument } from './customer/schemas/customer.schema';
 import { Review, ReviewDocument } from './customer/schemas/review.schema';
 import { Order, OrderDocument } from './customer/schemas/order.schema';
-import { CreateCustomerDto } from './customer/dto/create-customer.dto'; 
+import { Rating, RatingDocument } from './customer/schemas/rating.schema';
+import { CreateCustomerDto } from './customer/dto/create-customer.dto';
 
 type BanMode = 'unban' | 'permanent' | 'days';
 
- 
 
-@Injectable() 
 
-export class UsersService { 
+@Injectable()
+
+export class UsersService {
 
     constructor(
         @InjectModel(User.name) private userModel: Model<UserDocument>,
         @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
         @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
-    ) { } 
+        @InjectModel(Rating.name) private ratingModel: Model<RatingDocument>,
+    ) { }
 
     private ensureCustomerOrderUploadDir(): string {
         const uploadDir = path.join(process.cwd(), 'uploads', 'customerorder');
@@ -68,21 +70,21 @@ export class UsersService {
         });
     }
 
- 
 
-    findByEmail(email: string) { 
 
-        return this.userModel.findOne({ email }).exec(); 
+    findByEmail(email: string) {
 
-    } 
+        return this.userModel.findOne({ email }).exec();
 
-     // ใช้ตอน login: ต้องดึง passwordHash และ refreshTokenHash 
+    }
 
-    findByEmailWithSecrets(email: string) { 
+    // ใช้ตอน login: ต้องดึง passwordHash และ refreshTokenHash 
 
-        return this.userModel.findOne({ email }).select('+passwordHash +refreshTokenHash').exec(); 
+    findByEmailWithSecrets(email: string) {
 
-    } 
+        return this.userModel.findOne({ email }).select('+passwordHash +refreshTokenHash').exec();
+
+    }
 
     findByEmailWithAuthSecrets(email: string) {
         return this.userModel
@@ -91,51 +93,51 @@ export class UsersService {
             .exec();
     }
 
- 
+
 
     // ใช้ตอน refresh: ต้องดึง refreshTokenHash 
 
-    findByIdWithRefresh(userId: string) { 
+    findByIdWithRefresh(userId: string) {
 
-        return this.userModel.findById(userId).select('+refreshTokenHash').exec(); 
+        return this.userModel.findById(userId).select('+refreshTokenHash').exec();
 
-    } 
+    }
 
- 
+
 
     // สร้างผู้ใช้ใหม่ โดยกำหนด role ได้ 
 
-    create(data: { email: string; passwordHash: string; role?: UserRole }) { 
+    create(data: { email: string; passwordHash: string; role?: UserRole }) {
 
-        return this.userModel.create({ 
+        return this.userModel.create({
 
-            email: data.email, 
+            email: data.email,
 
-            passwordHash: data.passwordHash, 
+            passwordHash: data.passwordHash,
 
-            role: data.role ?? 'user', 
+            role: data.role ?? 'user',
 
-        }); 
+        });
 
-    } 
+    }
 
- 
+
 
     // อัพเดท refreshTokenHash 
 
-    setRefreshTokenHash(userId: string, refreshTokenHash: string | null) { 
+    setRefreshTokenHash(userId: string, refreshTokenHash: string | null) {
 
-        return this.userModel.updateOne({ _id: userId }, { refreshTokenHash }).exec(); 
+        return this.userModel.updateOne({ _id: userId }, { refreshTokenHash }).exec();
 
-    } 
+    }
 
- 
+
 
     // อัพเดทบทบาทผู้ใช้ 
 
-    setRole(userId: string, role: UserRole) { 
+    setRole(userId: string, role: UserRole) {
 
-        return this.userModel.updateOne({ _id: userId }, { role }).exec(); 
+        return this.userModel.updateOne({ _id: userId }, { role }).exec();
 
     }
 
@@ -407,7 +409,12 @@ export class UsersService {
 
     // ===== ORDER METHODS =====
 
-    async createOrder(customerId: string, data: any) {
+    async createOrder(userId: string, data: any) {
+        // Resolve Customer profile ID to link the order properly
+        const userObjectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
+        const customer = await this.customerModel.findOne({ userId: userObjectId || userId } as any).exec();
+        const primaryId = customer?._id || userObjectId || userId;
+
         const pickupLocation = {
             type: 'Point' as const,
             coordinates: [data.pickupLongitude, data.pickupLatitude],
@@ -421,7 +428,7 @@ export class UsersService {
         const savedImages = this.persistOrderImages(data.images);
 
         return this.orderModel.create({
-            customerId: Types.ObjectId.isValid(customerId) ? new Types.ObjectId(customerId) : (customerId as any),
+            customerId: primaryId as any,
             productName: data.productName,
             contactPhone: data.contactPhone || '',
             description: data.description || '',
@@ -470,10 +477,42 @@ export class UsersService {
         ).exec();
     }
 
-    getCustomerOrders(customerId: string, status?: string) {
-        const query: any = Types.ObjectId.isValid(customerId)
-            ? { $or: [{ customerId: new Types.ObjectId(customerId) }, { customerId }] }
-            : { customerId };
+    async getUserOwnedIds(userId: string): Promise<Types.ObjectId[]> {
+        if (!userId) return [];
+        const userObjectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
+        if (!userObjectId) return [];
+
+        const ids: Types.ObjectId[] = [userObjectId];
+
+        // Find customer profile to get customer ID as well
+        const customer = await this.customerModel.findOne({ userId: userObjectId } as any).exec();
+        if (customer?._id) {
+            ids.push(customer._id as Types.ObjectId);
+        }
+
+        return ids;
+    }
+
+    async isOrderOwner(orderId: string, userId: string): Promise<boolean> {
+        if (!orderId || !userId) return false;
+
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) return false;
+
+        const ownedIds = await this.getUserOwnedIds(userId);
+        const ownedIdsStrings = ownedIds.map((id) => id.toString());
+
+        return ownedIdsStrings.includes(order.customerId.toString());
+    }
+
+    async getCustomerOrders(userId: string, status?: string) {
+        const possibleIds = await this.getUserOwnedIds(userId);
+        if (possibleIds.length === 0) return [];
+
+        const query: any = {
+            customerId: { $in: possibleIds }
+        };
+
         if (status) query.status = status;
 
         return this.orderModel.find(query).sort({ createdAt: -1 }).exec();
@@ -514,6 +553,165 @@ export class UsersService {
                 },
             },
         ]);
+    }
+
+    // ===== PROFILE IMAGE UPLOAD =====
+    async uploadProfileImage(userId: string, file: any): Promise<string> {
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'profile');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const fileName = `${userId}-${Date.now()}-${Math.random().toString(16).slice(2)}${path.extname(file.originalname)}`;
+        const filePath = path.join(uploadsDir, fileName);
+
+        fs.writeFileSync(filePath, file.buffer);
+        const imageUrl = `/uploads/profile/${fileName}`;
+
+        await this.userModel.findByIdAndUpdate(
+            userId,
+            { profileImage: imageUrl },
+            { new: true },
+        ).exec();
+
+        return imageUrl;
+    }
+
+    // ===== SAVED ADDRESS METHODS =====
+    async setDefaultAddress(userId: string, addressIndex: number) {
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) throw new NotFoundException('User not found');
+        if (!user.savedAddresses || !user.savedAddresses[addressIndex]) {
+            throw new NotFoundException('Address not found');
+        }
+
+        // Unset all addresses as default
+        user.savedAddresses.forEach((addr) => {
+            addr.isDefault = false;
+        });
+
+        // Set the selected address as default
+        user.savedAddresses[addressIndex].isDefault = true;
+        await user.save();
+
+        return user.savedAddresses[addressIndex];
+    }
+
+    async deleteSavedAddress(userId: string, addressIndex: number) {
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) throw new NotFoundException('User not found');
+        if (!user.savedAddresses || !user.savedAddresses[addressIndex]) {
+            throw new NotFoundException('Address not found');
+        }
+
+        user.savedAddresses.splice(addressIndex, 1);
+        await user.save();
+        return true;
+    }
+
+    // ===== SECURITY METHODS =====
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean> {
+        const user = await this.userModel.findById(userId).select('+passwordHash').exec();
+        if (!user) throw new NotFoundException('User not found');
+
+        // Verify current password
+        const isPasswordValid = await argon2.verify(user.passwordHash, currentPassword);
+        if (!isPasswordValid) return false;
+
+        // Check if new password is same as current
+        if (await argon2.verify(user.passwordHash, newPassword)) {
+            throw new BadRequestException('New password cannot be same as current password');
+        }
+
+        // Hash and update new password
+        const hashedPassword = await argon2.hash(newPassword);
+        await this.userModel.findByIdAndUpdate(userId, { passwordHash: hashedPassword }).exec();
+        return true;
+    }
+
+    async getUserDevices(userId: string, req: any): Promise<any[]> {
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) throw new NotFoundException('User not found');
+
+        // For now, return a mock device structure
+        // In production, you would track devices in a separate Device collection
+        const currentDeviceId = userId + '-current';
+        return [
+            {
+                id: currentDeviceId,
+                deviceName: req.headers['user-agent'] || 'Unknown Device',
+                lastAccessedAt: new Date().toISOString(),
+                ipAddress: req.ip || '0.0.0.0',
+                isCurrent: true,
+            },
+        ];
+    }
+
+    async logoutFromDevice(userId: string, deviceId: string): Promise<void> {
+        // In production, you would remove the device from the Device collection
+        // For now, this is a placeholder implementation
+        const user = await this.userModel.findById(userId).exec();
+        if (!user) throw new NotFoundException('User not found');
+    }
+
+    // ===== RATING METHODS =====
+    async rateOrder(orderId: string, data: any): Promise<any> {
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        // Update order with rating
+        order.hasRating = true;
+        order.rating = {
+            merchantRating: data.merchantRating,
+            riderRating: data.riderRating,
+            merchantComment: data.merchantComment || '',
+            riderComment: data.riderComment || '',
+        };
+
+        await order.save();
+
+        return {
+            orderId: order._id,
+            merchantRating: data.merchantRating,
+            riderRating: data.riderRating,
+            merchantComment: data.merchantComment || '',
+            riderComment: data.riderComment || '',
+            createdAt: (order as any).createdAt || new Date(),
+            updatedAt: (order as any).updatedAt || new Date(),
+        };
+    }
+
+    // ===== PAGINATION SUPPORT =====
+    async getCustomerOrdersPaginated(
+        userId: string,
+        status?: string,
+        limit: number = 50,
+        offset: number = 0,
+    ): Promise<any> {
+        const possibleIds = await this.getUserOwnedIds(userId);
+        if (possibleIds.length === 0) return { orders: [], total: 0, limit, offset };
+
+        const query: any = {
+            customerId: { $in: possibleIds }
+        };
+
+        if (status) query.status = status;
+
+        const orders = await this.orderModel
+            .find(query)
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .skip(offset)
+            .exec();
+
+        const total = await this.orderModel.countDocuments(query as any).exec();
+
+        return {
+            orders,
+            total,
+            limit,
+            offset,
+        };
     }
 
 }

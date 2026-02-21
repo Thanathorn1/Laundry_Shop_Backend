@@ -218,7 +218,7 @@ export class RiderService {
 
         if (profile.riderImageUrl) {
             this.deleteFile(profile.riderImageUrl);
-            profile.riderImageUrl = null;
+            profile.riderImageUrl = '';
             await profile.save();
         }
 
