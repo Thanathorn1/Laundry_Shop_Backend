@@ -71,7 +71,7 @@ export class Order {
     @Prop({ type: Number, default: 0 })
     totalPrice: number;
 
-    @Prop({ type: Date, default: null })
+    @Prop({ type: Date, default: null, expires: 60 })
     completedAt: Date | null;
 }
 

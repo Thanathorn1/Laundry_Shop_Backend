@@ -364,10 +364,8 @@ export class UsersService {
         ).exec();
     }
 
-    getCustomerOrders(customerId: string, status?: string) {
-        const query: any = Types.ObjectId.isValid(customerId)
-            ? { $or: [{ customerId: new Types.ObjectId(customerId) }, { customerId }] }
-            : { customerId };
+    getCustomerOrders(userId: string, status?: string) {
+        const query: any = { customerId: new Types.ObjectId(userId) };
         if (status) query.status = status;
 
         return this.orderModel.find(query).sort({ createdAt: -1 }).exec();

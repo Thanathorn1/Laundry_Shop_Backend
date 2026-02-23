@@ -15,7 +15,7 @@ export class OrderService {
 
     async create(userId: string, dto: CreateOrderDto) {
         const order = new this.orderModel({
-            user: new Types.ObjectId(userId),
+            customerId: new Types.ObjectId(userId),
             weight: dto.weight,
             price: dto.price,
             location: dto.location,

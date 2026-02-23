@@ -107,17 +107,30 @@ export class RiderService {
         });
     }
 
-    // ================= RIDER TASKS =================
-    async findRiderTasks(riderId: string): Promise<OrderDocument[]> {
+    async findRiderTasks(riderId: string) {
         if (!Types.ObjectId.isValid(riderId)) {
             throw new BadRequestException('Invalid rider ID');
         }
 
-        return this.orderModel
+        const orders = await this.orderModel
             .find({ riderId: new Types.ObjectId(riderId) })
             .populate('customerId', 'email')
             .sort({ createdAt: -1 })
             .exec();
+
+        return orders.map((order) => {
+            const doc = order.toObject();
+            const loc = doc.pickupLocation;
+            // Ensure location object exists for frontend
+            const lat = loc?.coordinates?.[1];
+            const lon = loc?.coordinates?.[0];
+
+            return {
+                ...doc,
+                customerName: doc.productName,
+                location: lat && lon ? { lat, lon } : null,
+            };
+        });
     }
 
     // ================= ACCEPT ORDER =================
@@ -157,7 +170,7 @@ export class RiderService {
         const validTransitions: Record<OrderStatus, OrderStatus[]> = {
             'pending': ['assigned', 'cancelled'],
             'assigned': ['picked_up', 'cancelled'],
-            'picked_up': ['completed'],
+            'picked_up': ['completed', 'cancelled'],
             'completed': [],
             'cancelled': [],
         };
@@ -166,7 +179,12 @@ export class RiderService {
             throw new BadRequestException(`Invalid status transition from ${order.status} to ${status}`);
         }
 
-        order.status = status;
+        if (status === 'cancelled' && (order.status === 'assigned' || order.status === 'picked_up')) {
+            order.status = 'pending';
+            order.riderId = null;
+        } else {
+            order.status = status;
+        }
 
         if (status === 'completed') {
             order.completedAt = new Date();
