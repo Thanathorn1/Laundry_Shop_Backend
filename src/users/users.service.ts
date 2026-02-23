@@ -824,6 +824,24 @@ export class UsersService {
         return order;
     }
 
+    async riderCompleteDelivery(orderId: string, riderId: string) {
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (!order.riderId || String(order.riderId) !== riderId) {
+            throw new BadRequestException('Order is not assigned to this rider');
+        }
+
+        if (order.status !== 'out_for_delivery') {
+            throw new BadRequestException('Order is not out for delivery');
+        }
+
+        order.status = 'completed';
+        order.completedAt = new Date();
+        await order.save();
+        return order;
+    }
+
     async listNearbyShopsForEmployee(employeeId: string, lat?: number, lng?: number, maxDistanceKm = 8) {
         const user = await this.userModel
             .findById(employeeId)

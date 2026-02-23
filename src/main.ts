@@ -13,6 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule); 
 
   app.enableCors(); 
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
   app.use(
     helmet({
       crossOriginResourcePolicy: false,

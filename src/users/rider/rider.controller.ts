@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Param, Body, UseGuards, Req, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, UseGuards, Req, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { RiderService } from './rider.service';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { RiderProfileDto } from './dto/rider-profile.dto';
@@ -7,6 +7,8 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Delete, ForbiddenException } from '@nestjs/common';
 import { UsersService } from '../users.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Controller('rider')
 @UseGuards(AccessTokenGuard)
@@ -31,6 +33,58 @@ export class RiderController {
     @Get('profile')
     async getProfile(@Req() req: any) {
         const riderId = await this.ensureRole(req, ['rider', 'admin']);
+        return this.riderService.getProfile(riderId);
+    }
+
+    @Patch('profile')
+    @UseInterceptors(
+        FileFieldsInterceptor(
+            [
+                { name: 'riderImage', maxCount: 1 },
+                { name: 'vehicleImage', maxCount: 1 },
+            ],
+            {
+                storage: diskStorage({
+                    destination: (_req, _file, cb) => {
+                        const uploadDir = path.join(process.cwd(), 'uploads', 'rider');
+                        try {
+                            if (!fs.existsSync(uploadDir)) {
+                                fs.mkdirSync(uploadDir, { recursive: true });
+                            }
+                        } catch {
+                            // ignore; let multer error if it cannot write
+                        }
+                        cb(null, uploadDir);
+                    },
+                    filename: (_req, file, cb) => {
+                        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+                        const fileExt = extname(file.originalname || '').toLowerCase();
+                        cb(null, `${file.fieldname}-${uniqueSuffix}${fileExt || '.jpg'}`);
+                    },
+                }),
+            },
+        ),
+    )
+    async upsertMyProfile(
+        @Req() req: any,
+        @Body() dto: RiderProfileDto,
+        @UploadedFiles()
+        files: {
+            riderImage?: Array<{ filename: string }>;
+            vehicleImage?: Array<{ filename: string }>;
+        },
+    ) {
+        const riderId = await this.ensureRole(req, ['rider', 'admin']);
+
+        const riderImageUrl = files?.riderImage?.[0]?.filename
+            ? `/uploads/rider/${files.riderImage[0].filename}`
+            : undefined;
+
+        const vehicleImageUrl = files?.vehicleImage?.[0]?.filename
+            ? `/uploads/rider/${files.vehicleImage[0].filename}`
+            : undefined;
+
+        await this.riderService.updateProfile(riderId, dto, riderImageUrl, vehicleImageUrl);
         return this.riderService.getProfile(riderId);
     }
 
@@ -88,6 +142,12 @@ export class RiderController {
     async startReturnDelivery(@Param('id') orderId: string, @Req() req: any) {
         const riderId = await this.ensureRole(req, ['rider']);
         return this.usersService.riderStartDeliveryBack(orderId, riderId);
+    }
+
+    @Patch('complete-delivery/:id')
+    async completeDelivery(@Param('id') orderId: string, @Req() req: any) {
+        const riderId = await this.ensureRole(req, ['rider']);
+        return this.usersService.riderCompleteDelivery(orderId, riderId);
     }
 
     @Delete('profile')

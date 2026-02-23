@@ -78,7 +78,6 @@ export class MapController {
   @UseGuards(AccessTokenGuard)
   @Get('map/shops')
   async listShops(@Request() req: any) {
-    await this.ensureAdmin(req);
     return this.mapService.listShopPins();
   }
 

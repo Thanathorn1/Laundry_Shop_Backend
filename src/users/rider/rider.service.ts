@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Order, OrderDocument } from './schemas/order.schema';
+import { Order, OrderDocument } from '../customer/schemas/order.schema';
 import { RiderProfile, RiderProfileDocument } from './schemas/rider-profile.schema';
 import { RiderProfileDto } from './dto/rider-profile.dto';
 import * as fs from 'fs';
@@ -168,11 +168,11 @@ export class RiderService {
     }
 
     async findAvailableOrders(): Promise<OrderDocument[]> {
-        return this.orderModel.find({ status: 'pending', rider: { $exists: false } }).exec();
+        return this.orderModel.find({ status: 'pending', riderId: null }).exec();
     }
 
     async findRiderTasks(riderId: string): Promise<OrderDocument[]> {
-        return this.orderModel.find({ rider: new Types.ObjectId(riderId) }).exec();
+        return this.orderModel.find({ riderId: new Types.ObjectId(riderId) }).exec();
     }
 
     async acceptOrder(orderId: string, riderId: string): Promise<OrderDocument> {
@@ -180,12 +180,12 @@ export class RiderService {
         if (!order) {
             throw new NotFoundException('Order not found');
         }
-        if (order.status !== 'pending' || order.rider) {
+        if (order.status !== 'pending' || order.riderId) {
             throw new BadRequestException('Order is no longer available');
         }
 
-        order.rider = new Types.ObjectId(riderId);
-        order.status = 'accepted';
+        order.riderId = new Types.ObjectId(riderId) as any;
+        order.status = 'assigned';
         return order.save();
     }
 
@@ -194,20 +194,23 @@ export class RiderService {
         if (!order) {
             throw new NotFoundException('Order not found');
         }
-        if (order.rider?.toString() !== riderId) {
+        if (String(order.riderId || '') !== riderId) {
             throw new BadRequestException('You are not assigned to this order');
         }
 
         const validTransitions = {
-            'accepted': ['picked-up', 'cancelled'],
-            'picked-up': ['delivered'],
+            assigned: ['picked_up', 'cancelled'],
+            out_for_delivery: ['completed'],
         };
 
         if (!validTransitions[order.status]?.includes(status)) {
             throw new BadRequestException(`Invalid status transition from ${order.status} to ${status}`);
         }
 
-        order.status = status;
+        order.status = status as any;
+        if (status === 'completed') {
+            (order as any).completedAt = new Date();
+        }
         return order.save();
     }
 
