@@ -95,3 +95,6 @@ OrderSchema.index({ riderId: 1 });
 OrderSchema.index({ shopId: 1 });
 OrderSchema.index({ employeeId: 1 });
 OrderSchema.index({ 'pickupLocation': '2dsphere' });
+
+// Auto-delete completed/cancelled orders after 1 day (86400 seconds)
+OrderSchema.index({ completedAt: 1 }, { expireAfterSeconds: 86400 });

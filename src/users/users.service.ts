@@ -690,7 +690,7 @@ export class UsersService {
 
         const savedImages = this.persistOrderImages(data.images);
 
-        return this.orderModel.create({
+        const created = await this.orderModel.create({
             customerId: Types.ObjectId.isValid(customerId) ? new Types.ObjectId(customerId) : (customerId as any),
             productName: data.productName,
             contactPhone: data.contactPhone || '',
@@ -704,6 +704,11 @@ export class UsersService {
             deliveryAddress: data.deliveryAddress || null,
             status: 'pending',
         });
+
+        // Notify all riders about the new pending order
+        this.orderGateway.emitOrderUpdate(created);
+
+        return created;
     }
 
     findOrderById(orderId: string) {
