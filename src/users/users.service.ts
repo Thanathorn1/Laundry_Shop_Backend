@@ -91,7 +91,9 @@ export class UsersService {
     findByEmailWithAuthSecrets(email: string) {
         return this.userModel
             .findOne({ email })
-            .select('+passwordHash +refreshTokenHash isBanned banStartAt banEndAt')
+            // IMPORTANT: using inclusion select() excludes other fields unless explicitly listed.
+            // Sign-in requires role/email for role enforcement and token generation.
+            .select('email role +passwordHash +refreshTokenHash isBanned banStartAt banEndAt')
             .exec();
     }
 
