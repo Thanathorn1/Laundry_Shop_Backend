@@ -7,6 +7,7 @@ import { RiderProfile, RiderProfileDocument } from './schemas/rider-profile.sche
 import { RiderProfileDto } from './dto/rider-profile.dto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { OrderGateway } from '../../realtime/order.gateway';
 
 @Injectable()
 export class RiderService {
@@ -14,6 +15,7 @@ export class RiderService {
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
         @InjectModel(RiderProfile.name) private riderProfileModel: Model<RiderProfileDocument>,
         private configService: ConfigService,
+        private readonly orderGateway: OrderGateway,
     ) { }
 
     public deleteFile(relativePath: string) {
@@ -186,7 +188,9 @@ export class RiderService {
 
         order.riderId = new Types.ObjectId(riderId) as any;
         order.status = 'assigned';
-        return order.save();
+        const saved = await order.save();
+        this.orderGateway.emitOrderUpdate(saved);
+        return saved;
     }
 
     async updateStatus(orderId: string, riderId: string, status: string): Promise<OrderDocument> {
@@ -211,7 +215,9 @@ export class RiderService {
         if (status === 'completed') {
             (order as any).completedAt = new Date();
         }
-        return order.save();
+        const saved = await order.save();
+        this.orderGateway.emitOrderUpdate(saved);
+        return saved;
     }
 
     async deleteRiderImage(riderId: string) {

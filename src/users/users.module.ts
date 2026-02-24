@@ -11,10 +11,12 @@ import { CustomersController } from './customer/customers.controller';
 import { AdminUsersController } from './admin/admin-users.controller';
 import { Shop, ShopSchema } from '../map/schemas/shop.schema';
 import { EmployeeController } from './employee/employee.controller';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({ 
 
   imports: [
+    RealtimeModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Customer.name, schema: CustomerSchema },

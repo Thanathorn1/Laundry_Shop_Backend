@@ -12,6 +12,7 @@ import { Review, ReviewDocument } from './customer/schemas/review.schema';
 import { Order, OrderDocument } from './customer/schemas/order.schema';
 import { CreateCustomerDto } from './customer/dto/create-customer.dto'; 
 import { Shop } from '../map/schemas/shop.schema';
+import { OrderGateway } from '../realtime/order.gateway';
 
 type BanMode = 'unban' | 'permanent' | 'days';
 
@@ -27,6 +28,7 @@ export class UsersService {
         @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>,
         @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
         @InjectModel(Shop.name) private shopModel: Model<Shop>,
+        private readonly orderGateway: OrderGateway,
     ) { } 
 
     private ensureCustomerOrderUploadDir(): string {
@@ -730,12 +732,19 @@ export class UsersService {
         return this.orderModel.findByIdAndDelete(orderId).exec();
     }
 
-    updateOrderStatus(orderId: string, status: string) {
-        return this.orderModel.findByIdAndUpdate(
-            orderId,
-            { status, ...(status === 'completed' && { completedAt: new Date() }) },
-            { new: true },
-        ).exec();
+    async updateOrderStatus(orderId: string, status: string) {
+        const updated = await this.orderModel
+            .findByIdAndUpdate(
+                orderId,
+                { status, ...(status === 'completed' && { completedAt: new Date() }) },
+                { new: true },
+            )
+            .exec();
+
+        if (updated) {
+            this.orderGateway.emitOrderUpdate(updated);
+        }
+        return updated;
     }
 
     getCustomerOrders(customerId: string, status?: string) {
@@ -804,6 +813,8 @@ export class UsersService {
         order.status = 'at_shop';
         await order.save();
 
+        this.orderGateway.emitOrderUpdate(order);
+
         return order;
     }
 
@@ -821,6 +832,8 @@ export class UsersService {
 
         order.status = 'out_for_delivery';
         await order.save();
+
+        this.orderGateway.emitOrderUpdate(order);
         return order;
     }
 
@@ -839,6 +852,8 @@ export class UsersService {
         order.status = 'completed';
         order.completedAt = new Date();
         await order.save();
+
+        this.orderGateway.emitOrderUpdate(order);
         return order;
     }
 
@@ -950,6 +965,8 @@ export class UsersService {
             order.washingStartedAt = new Date();
         }
         await order.save();
+
+        this.orderGateway.emitOrderUpdate(order);
         return order;
     }
 
@@ -968,6 +985,8 @@ export class UsersService {
         }
         order.washingCompletedAt = new Date();
         await order.save();
+
+        this.orderGateway.emitOrderUpdate(order);
         return order;
     }
 

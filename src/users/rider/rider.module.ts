@@ -6,10 +6,12 @@ import { Order, OrderSchema } from '../customer/schemas/order.schema';
 import { RiderProfile, RiderProfileSchema } from './schemas/rider-profile.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { UsersModule } from '../users.module';
+import { RealtimeModule } from '../../realtime/realtime.module';
 
 @Module({
     imports: [
         UsersModule,
+        RealtimeModule,
         MongooseModule.forFeature([
             { name: Order.name, schema: OrderSchema },
             { name: RiderProfile.name, schema: RiderProfileSchema },
