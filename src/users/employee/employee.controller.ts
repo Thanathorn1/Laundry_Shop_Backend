@@ -63,7 +63,11 @@ export class EmployeeController {
       throw new ForbiddenException('Employee only');
     }
 
-    const canView = actor.role === 'admin' || (actor.role === 'employee' && actor.assignedShopId === shopId);
+    const assignedShopIds = Array.isArray((actor as any).assignedShopIds) ? (actor as any).assignedShopIds.map(String) : [];
+    const canView = actor.role === 'admin' || (
+      actor.role === 'employee' &&
+      ((actor as any).assignedShopId === shopId || assignedShopIds.includes(String(shopId)))
+    );
     if (!canView) {
       throw new ForbiddenException('Not allowed to view join requests for this shop');
     }

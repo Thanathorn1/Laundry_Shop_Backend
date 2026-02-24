@@ -244,14 +244,24 @@ export class UsersService {
 
         for (const employee of employees as any[]) {
             const assignedShopId = typeof employee.assignedShopId === 'string' ? employee.assignedShopId : '';
-            if (!assignedShopId || !shopsById.has(assignedShopId)) {
+            const assignedShopIds = Array.isArray(employee.assignedShopIds) ? employee.assignedShopIds.map(String) : [];
+
+            const memberShopIds = new Set<string>([
+                ...assignedShopIds.filter(Boolean),
+                ...(assignedShopId ? [assignedShopId] : []),
+            ]);
+
+            const validShopIds = Array.from(memberShopIds).filter((id) => shopsById.has(String(id)));
+            if (validShopIds.length === 0) {
                 unassignedEmployees.push(employee);
                 continue;
             }
 
-            const bucket = employeesByShop.get(assignedShopId) || [];
-            bucket.push(employee);
-            employeesByShop.set(assignedShopId, bucket);
+            for (const shopId of validShopIds) {
+                const bucket = employeesByShop.get(shopId) || [];
+                bucket.push(employee);
+                employeesByShop.set(shopId, bucket);
+            }
         }
 
         return {
@@ -285,12 +295,16 @@ export class UsersService {
             normalizedShopId = incomingShopId;
         }
 
+        const update: any = { $set: { assignedShopId: normalizedShopId } };
+        if (normalizedShopId) {
+            update.$addToSet = { assignedShopIds: normalizedShopId };
+        } else {
+            // If admin unassigns, also clear membership list to match previous single-shop behavior.
+            update.$set.assignedShopIds = [];
+        }
+
         const updated = await this.userModel
-            .findByIdAndUpdate(
-                employeeId,
-                { $set: { assignedShopId: normalizedShopId } },
-                { new: true },
-            )
+            .findByIdAndUpdate(employeeId, update, { new: true })
             .select('-passwordHash -refreshTokenHash')
             .lean()
             .exec();
@@ -315,7 +329,10 @@ export class UsersService {
             throw new NotFoundException('Shop not found');
         }
 
-        if (employee.assignedShopId && employee.assignedShopId === shopId) {
+        const assignedShopId = typeof (employee as any).assignedShopId === 'string' ? String((employee as any).assignedShopId) : '';
+        const assignedShopIds = Array.isArray((employee as any).assignedShopIds) ? (employee as any).assignedShopIds.map(String) : [];
+        const isAlreadyMember = assignedShopId === shopId || assignedShopIds.includes(String(shopId));
+        if (isAlreadyMember) {
             return employee;
         }
 
@@ -382,13 +399,29 @@ export class UsersService {
         }
 
         const requestedShopId = employee.joinRequestShopId;
-        const canApprove = actor.role === 'admin' || (actor.role === 'employee' && actor.assignedShopId === requestedShopId);
+        const actorAssignedShopId = typeof (actor as any).assignedShopId === 'string' ? String((actor as any).assignedShopId) : '';
+        const actorAssignedShopIds = Array.isArray((actor as any).assignedShopIds) ? (actor as any).assignedShopIds.map(String) : [];
+        const actorIsMemberOfRequestedShop = actorAssignedShopId === String(requestedShopId) || actorAssignedShopIds.includes(String(requestedShopId));
+
+        const canApprove = actor.role === 'admin' || (actor.role === 'employee' && actorIsMemberOfRequestedShop);
         if (!canApprove) {
             throw new ForbiddenException('Not allowed to resolve this join request');
         }
 
         if (action === 'approve') {
+            const previousAssignedShopId = typeof (employee as any).assignedShopId === 'string' ? String((employee as any).assignedShopId) : '';
             employee.assignedShopId = requestedShopId;
+            const currentMembership = Array.isArray((employee as any).assignedShopIds)
+                ? (employee as any).assignedShopIds.map(String)
+                : [];
+
+            if (previousAssignedShopId && !currentMembership.includes(previousAssignedShopId)) {
+                currentMembership.push(previousAssignedShopId);
+            }
+            if (!currentMembership.includes(String(requestedShopId))) {
+                currentMembership.push(String(requestedShopId));
+            }
+            (employee as any).assignedShopIds = currentMembership;
             employee.joinRequestShopId = null;
             employee.joinRequestStatus = 'none';
         } else {

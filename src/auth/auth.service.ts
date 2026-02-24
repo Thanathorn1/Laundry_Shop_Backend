@@ -161,6 +161,15 @@ export class AuthService {
         const passwordMatches = await argon2.verify(user.passwordHash, dto.password);
         if (!passwordMatches) throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
 
+        // Enforce portal role match: only admins may sign in with any requested role.
+        if (dto.role) {
+            const requestedRole = dto.role;
+            const isAdmin = user.role === 'admin';
+            if (!isAdmin && user.role !== requestedRole) {
+                throw new ForbiddenException('Role does not match this account');
+            }
+        }
+
         const tokens = await this.signTokens({ id: String(user._id), email: user.email, role: user.role });
         await this.storeRefreshHash(String(user._id), tokens.refresh_token);
         return tokens;

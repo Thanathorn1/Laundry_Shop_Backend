@@ -64,6 +64,9 @@ export class User {
     @Prop({ type: String, default: null, index: true })
     assignedShopId?: string | null;
 
+    @Prop({ type: [String], default: [], index: true })
+    assignedShopIds?: string[];
+
     @Prop({ type: String, default: null, index: true })
     joinRequestShopId?: string | null;
 
