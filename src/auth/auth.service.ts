@@ -163,9 +163,16 @@ export class AuthService {
 
         // Enforce portal role match: only admins may sign in with any requested role.
         if (dto.role) {
-            const requestedRole = dto.role;
-            const isAdmin = user.role === 'admin';
-            if (!isAdmin && user.role !== requestedRole) {
+            const normalizeRole = (value?: string | null) => String(value ?? '').trim().toLowerCase();
+            const requestedRole = normalizeRole(dto.role);
+            const accountRole = normalizeRole((user as any).role);
+            const isAdmin = accountRole === 'admin';
+
+            if (!isAdmin && accountRole !== requestedRole) {
+                // Dev-friendly diagnostic (won't leak to client response)
+                // Useful when Mac/PC are pointing at different backends/DBs.
+                // eslint-disable-next-line no-console
+                console.warn(`[auth] role mismatch for ${email}: requested=${requestedRole} account=${accountRole}`);
                 throw new ForbiddenException('Role does not match this account');
             }
         }
