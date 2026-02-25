@@ -858,6 +858,39 @@ export class UsersService {
         return order;
     }
 
+    async riderSelectShop(orderId: string, riderId: string, shopId: string | null) {
+        const order = await this.orderModel.findById(orderId).exec();
+        if (!order) throw new NotFoundException('Order not found');
+
+        if (!order.riderId || String(order.riderId) !== riderId) {
+            throw new BadRequestException('Order is not assigned to this rider');
+        }
+
+        if (!['picked_up', 'assigned'].includes(order.status)) {
+            throw new BadRequestException('Shop selection is allowed only before handover');
+        }
+
+        if (shopId && shopId.trim()) {
+            const normalizedShopId = shopId.trim();
+            if (!Types.ObjectId.isValid(normalizedShopId)) {
+                throw new BadRequestException('Invalid shopId');
+            }
+
+            const shop = await this.shopModel.findById(normalizedShopId).select('_id').lean().exec();
+            if (!shop) {
+                throw new NotFoundException('Shop not found');
+            }
+
+            order.shopId = new Types.ObjectId(normalizedShopId) as any;
+        } else {
+            order.shopId = null as any;
+        }
+
+        await order.save();
+        this.orderGateway.emitOrderUpdate(order);
+        return order;
+    }
+
     async riderStartDeliveryBack(orderId: string, riderId: string) {
         const order = await this.orderModel.findById(orderId).exec();
         if (!order) throw new NotFoundException('Order not found');
