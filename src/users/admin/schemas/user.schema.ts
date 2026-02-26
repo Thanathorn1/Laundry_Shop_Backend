@@ -58,6 +58,27 @@ export class User {
   @Prop({ type: String, default: null })
   address?: string | null;
 
+  @Prop({ type: String, trim: true, default: '' })
+  fullName?: string;
+
+  @Prop({ type: String, trim: true, default: '' })
+  licensePlate?: string;
+
+  @Prop({ type: String, trim: true, default: '' })
+  drivingLicense?: string;
+
+  @Prop({ type: String, trim: true, default: '' })
+  phone?: string;
+
+  @Prop({ type: String, default: '' })
+  riderImageUrl?: string;
+
+  @Prop({ type: String, default: '' })
+  vehicleImageUrl?: string;
+
+  @Prop({ type: Boolean, default: false })
+  isApproved?: boolean;
+
   @Prop({ type: String, default: null, index: true })
   assignedShopId?: string | null;
 

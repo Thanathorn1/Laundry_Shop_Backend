@@ -5,8 +5,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Address } from './schemas/address.schema';
 import { OrderLocation } from './schemas/order-location.schema';
-import { RiderLocation } from './schemas/rider-location.schema';
 import { Shop } from './schemas/shop.schema';
+import { User } from '../users/admin/schemas/user.schema';
 
 @Injectable()
 export class MapService {
@@ -14,9 +14,8 @@ export class MapService {
     @InjectModel(Address.name) private addressModel: Model<Address>,
     @InjectModel(OrderLocation.name)
     private orderLocationModel: Model<OrderLocation>,
-    @InjectModel(RiderLocation.name)
-    private riderLocationModel: Model<RiderLocation>,
     @InjectModel(Shop.name) private shopModel: Model<Shop>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   private migrationDone = false;
@@ -399,15 +398,38 @@ export class MapService {
 
   async updateRiderLocation(riderId: string, loc: any) {
     const location = this.normalizeLocation(loc);
-    const now = new Date();
-    return this.riderLocationModel.findOneAndUpdate(
-      { riderId },
-      { riderId, location, updatedAt: now },
-      { upsert: true, new: true },
-    );
+    if (!location) return null;
+
+    const rider = await this.userModel
+      .findOneAndUpdate(
+        { _id: riderId, role: 'rider' },
+        { $set: { location } },
+        { new: true },
+      )
+      .select('_id location updatedAt')
+      .lean();
+
+    if (!rider) return null;
+
+    return {
+      riderId: String((rider as any)._id),
+      location: (rider as any).location,
+      updatedAt: (rider as any).updatedAt,
+    };
   }
 
   async getRiderLocation(riderId: string) {
-    return this.riderLocationModel.findOne({ riderId }).lean();
+    const rider = await this.userModel
+      .findOne({ _id: riderId, role: 'rider' })
+      .select('_id location updatedAt')
+      .lean();
+
+    if (!rider) return null;
+
+    return {
+      riderId: String((rider as any)._id),
+      location: (rider as any).location,
+      updatedAt: (rider as any).updatedAt,
+    };
   }
 }

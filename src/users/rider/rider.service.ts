@@ -7,10 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Order, OrderDocument } from '../customer/schemas/order.schema';
-import {
-  RiderProfile,
-  RiderProfileDocument,
-} from './schemas/rider-profile.schema';
+import { User, UserDocument } from '../schemas/user.schema';
 import { RiderProfileDto } from './dto/rider-profile.dto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -20,8 +17,7 @@ import { OrderGateway } from '../../realtime/order.gateway';
 export class RiderService {
   constructor(
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
-    @InjectModel(RiderProfile.name)
-    private riderProfileModel: Model<RiderProfileDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private configService: ConfigService,
     private readonly orderGateway: OrderGateway,
   ) {}
@@ -42,12 +38,13 @@ export class RiderService {
     }
   }
 
-  private formatProfileUrls(profile: RiderProfileDocument) {
+  private formatProfileUrls(profile: any) {
     try {
       if (!profile) return null;
       const baseUrl =
         this.configService.get<string>('APP_URL') || 'http://localhost:3000';
-      const p = profile.toObject();
+      const p =
+        typeof profile.toObject === 'function' ? profile.toObject() : profile;
 
       if (p.riderImageUrl && !p.riderImageUrl.startsWith('http')) {
         p.riderImageUrl = `${baseUrl}${p.riderImageUrl}`;
@@ -68,9 +65,11 @@ export class RiderService {
         `ID ไม่ถูกต้อง หรือยังไม่ได้เข้าสู่ระบบ: ${riderId}`,
       );
     }
-    const profile = await this.riderProfileModel
-      .findOne({ rider: new Types.ObjectId(riderId) })
-      .populate('rider', 'email role')
+    const profile = await this.userModel
+      .findById(riderId)
+      .select(
+        '_id email role fullName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
+      )
       .exec();
     if (!profile) {
       throw new NotFoundException('โปรไฟล์ Rider ยังไม่ได้ถูกสร้างตัวตน');
@@ -82,9 +81,11 @@ export class RiderService {
     if (!Types.ObjectId.isValid(riderId)) {
       throw new BadRequestException(`ID ไม่ถูกต้อง: ${riderId}`);
     }
-    const profile = await this.riderProfileModel
-      .findOne({ rider: new Types.ObjectId(riderId) })
-      .populate('rider', 'email role')
+    const profile = await this.userModel
+      .findOne({ _id: new Types.ObjectId(riderId), role: 'rider' })
+      .select(
+        '_id email role fullName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
+      )
       .exec();
     if (!profile) {
       throw new NotFoundException('ไม่พบข้อมูล Rider');
@@ -93,9 +94,11 @@ export class RiderService {
   }
 
   async findAllRiders() {
-    const profiles = await this.riderProfileModel
-      .find()
-      .populate('rider', 'email role')
+    const profiles = await this.userModel
+      .find({ role: 'rider' })
+      .select(
+        '_id email role fullName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
+      )
       .exec();
     return profiles.map((p) => this.formatProfileUrls(p));
   }
@@ -105,47 +108,40 @@ export class RiderService {
     dto: RiderProfileDto,
     riderImageUrl?: string,
     vehicleImageUrl?: string,
-  ): Promise<RiderProfileDocument> {
+  ): Promise<any> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException(
         `ID ที่ส่งมาไม่ถูกต้อง (Invalid ObjectId): ${id}`,
       );
     }
 
-    const objectId = new Types.ObjectId(id);
-
-    // 1. ค้นหาโปรไฟล์ที่ "เป็นของ" Rider คนนี้ (จาก User ID)
-    // หรือค้นหาตรงๆ จาก Profile ID ที่ส่งมา
-    let profile = await this.riderProfileModel.findOne({
-      $or: [{ rider: objectId }, { _id: objectId }],
-    });
-
-    // 2. ถ้ายังไม่มีโปรไฟล์เลย ให้สร้างใหม่
-    if (!profile) {
-      // เช็คก่อนว่า Rider คนนี้แอบมี Profile อื่นอยู่แล้วหรือเปล่า (กรณี id ที่ส่งมาคือ Profile ID)
-      // แต่ปกติ logic ด้านบนจะครอบคลุมแล้ว
-      profile = new this.riderProfileModel({
-        rider: objectId, // สมมติว่า id คือ Rider ID
-      });
+    const user = await this.userModel.findById(id).exec();
+    if (!user) {
+      throw new NotFoundException('ไม่พบข้อมูล Rider');
     }
 
-    // 3. จัดการรูปภาพ (ลบรูปเก่าถ้ามีการเปลี่ยน)
     if (riderImageUrl) {
-      if (profile.riderImageUrl) this.deleteFile(profile.riderImageUrl);
-      profile.riderImageUrl = riderImageUrl;
+      if ((user as any).riderImageUrl) this.deleteFile((user as any).riderImageUrl);
+      (user as any).riderImageUrl = riderImageUrl;
     }
 
     if (vehicleImageUrl) {
-      if (profile.vehicleImageUrl) {
-        this.deleteFile(profile.vehicleImageUrl);
+      if ((user as any).vehicleImageUrl) {
+        this.deleteFile((user as any).vehicleImageUrl);
       }
-      profile.vehicleImageUrl = vehicleImageUrl;
+      (user as any).vehicleImageUrl = vehicleImageUrl;
     }
 
-    // update field อื่นๆ ที่ส่งมาใน DTO
-    Object.assign(profile, dto);
+    if (dto.fullName !== undefined) (user as any).fullName = dto.fullName;
+    if (dto.licensePlate !== undefined)
+      (user as any).licensePlate = dto.licensePlate;
+    if (dto.drivingLicense !== undefined)
+      (user as any).drivingLicense = dto.drivingLicense;
+    if (dto.phone !== undefined) (user as any).phone = dto.phone;
+    if (dto.address !== undefined) (user as any).address = dto.address;
 
-    return profile.save();
+    await user.save();
+    return user;
   }
 
   async purgeOrphanedFiles(): Promise<{ deletedCount: number }> {
@@ -153,8 +149,8 @@ export class RiderService {
     if (!fs.existsSync(uploadDir)) return { deletedCount: 0 };
 
     const files = fs.readdirSync(uploadDir);
-    const profiles = await this.riderProfileModel
-      .find({}, 'riderImageUrl vehicleImageUrl')
+    const profiles = await this.userModel
+      .find({ role: 'rider' }, 'riderImageUrl vehicleImageUrl')
       .exec();
 
     // ดึงรายชื่อไฟล์ทั้งหมดที่ยังใช้อยู่ใน DB
@@ -239,7 +235,7 @@ export class RiderService {
   }
 
   async deleteRiderImage(riderId: string) {
-    const profile = await this.riderProfileModel.findOne({ rider: riderId });
+    const profile = await this.userModel.findById(riderId);
 
     if (!profile) throw new NotFoundException();
 
@@ -254,26 +250,35 @@ export class RiderService {
 
   async deleteProfile(id: string) {
     const isObjectId = Types.ObjectId.isValid(id);
+    if (!isObjectId) {
+      throw new NotFoundException(
+        `ไม่พบโปรไฟล์ที่มี ID: ${id} (รองรับเฉพาะ Rider User ID)`,
+      );
+    }
 
-    // ค้นหาเผื่อไว้ทั้ง 2 แบบ (Rider ID หรือ Profile ID)
-    const profile = await this.riderProfileModel.findOne({
-      $or: [
-        { rider: isObjectId ? new Types.ObjectId(id) : null },
-        { _id: isObjectId ? new Types.ObjectId(id) : null },
-      ],
+    const profile = await this.userModel.findOne({
+      _id: new Types.ObjectId(id),
+      role: 'rider',
     });
 
     if (!profile) {
       throw new NotFoundException(
-        `ไม่พบโปรไฟล์ที่มี ID: ${id} (ทั้งในฐานะ Rider ID และ Profile ID)`,
+        `ไม่พบโปรไฟล์ที่มี ID: ${id}`,
       );
     }
 
-    // ลบไฟล์รูปภาพก่อนลบ Document
     if (profile.riderImageUrl) this.deleteFile(profile.riderImageUrl);
     if (profile.vehicleImageUrl) this.deleteFile(profile.vehicleImageUrl);
 
-    await profile.deleteOne();
+    profile.fullName = '';
+    profile.licensePlate = '';
+    profile.drivingLicense = '';
+    profile.phone = '';
+    profile.address = '';
+    profile.riderImageUrl = '';
+    profile.vehicleImageUrl = '';
+    profile.isApproved = false;
+    await profile.save();
 
     return { message: 'ลบโปรไฟล์และไฟล์ภาพเรียบร้อยแล้ว' };
   }

@@ -35,6 +35,8 @@ import { APP_GUARD } from '@nestjs/core';
         serverSelectionTimeoutMS: 15000,
         socketTimeoutMS: 45000,
         connectTimeoutMS: 15000,
+        autoCreate: false,
+        autoIndex: false,
         maxPoolSize: 10,
         minPoolSize: 1,
         retryWrites: true,

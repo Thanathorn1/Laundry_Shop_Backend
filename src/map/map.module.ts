@@ -7,12 +7,9 @@ import {
   OrderLocation,
   OrderLocationSchema,
 } from './schemas/order-location.schema';
-import {
-  RiderLocation,
-  RiderLocationSchema,
-} from './schemas/rider-location.schema';
 import { Shop, ShopSchema } from './schemas/shop.schema';
 import { UsersModule } from '../users/users.module';
+import { User, UserSchema } from '../users/admin/schemas/user.schema';
 
 @Module({
   imports: [
@@ -20,8 +17,8 @@ import { UsersModule } from '../users/users.module';
     MongooseModule.forFeature([
       { name: Address.name, schema: AddressSchema },
       { name: OrderLocation.name, schema: OrderLocationSchema },
-      { name: RiderLocation.name, schema: RiderLocationSchema },
       { name: Shop.name, schema: ShopSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   providers: [MapService],
