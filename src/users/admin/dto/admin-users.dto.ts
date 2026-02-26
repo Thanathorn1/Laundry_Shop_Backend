@@ -1,4 +1,13 @@
-import { IsBoolean, IsEmail, IsEnum, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class ChangeUserRoleDto {
   @IsEnum(['user', 'rider', 'admin', 'employee'] as const)

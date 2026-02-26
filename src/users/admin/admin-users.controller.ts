@@ -1,4 +1,16 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { UsersService } from '../users.service';
 import {
@@ -99,7 +111,11 @@ export class AdminUsersController {
     await this.ensureAdmin(req);
     const requesterId = req?.user?.userId || req?.user?.sub || req?.user?.id;
     const action = body?.action;
-    return this.usersService.resolveEmployeeJoinRequest(requesterId, employeeId, action);
+    return this.usersService.resolveEmployeeJoinRequest(
+      requesterId,
+      employeeId,
+      action,
+    );
   }
 
   @UseGuards(AccessTokenGuard)
@@ -110,7 +126,10 @@ export class AdminUsersController {
     @Body() body: AssignEmployeeShopDto,
   ) {
     await this.ensureAdmin(req);
-    return this.usersService.adminAssignEmployeeToShop(employeeId, body?.shopId ?? null);
+    return this.usersService.adminAssignEmployeeToShop(
+      employeeId,
+      body?.shopId ?? null,
+    );
   }
 
   @UseGuards(AccessTokenGuard)
@@ -123,7 +142,10 @@ export class AdminUsersController {
     await this.ensureAdmin(req);
     const fallbackMode = body?.isBanned === true ? 'permanent' : 'unban';
     const mode = body?.mode ?? fallbackMode;
-    return this.usersService.adminSetUserBan(userId, { mode, days: body?.days });
+    return this.usersService.adminSetUserBan(userId, {
+      mode,
+      days: body?.days,
+    });
   }
 
   @UseGuards(AccessTokenGuard)

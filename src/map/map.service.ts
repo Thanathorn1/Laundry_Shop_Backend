@@ -12,12 +12,42 @@ import { Shop } from './schemas/shop.schema';
 export class MapService {
   constructor(
     @InjectModel(Address.name) private addressModel: Model<Address>,
-    @InjectModel(OrderLocation.name) private orderLocationModel: Model<OrderLocation>,
-    @InjectModel(RiderLocation.name) private riderLocationModel: Model<RiderLocation>,
+    @InjectModel(OrderLocation.name)
+    private orderLocationModel: Model<OrderLocation>,
+    @InjectModel(RiderLocation.name)
+    private riderLocationModel: Model<RiderLocation>,
     @InjectModel(Shop.name) private shopModel: Model<Shop>,
   ) {}
 
   private migrationDone = false;
+
+  private normalizeTotalWashingMachines(value: unknown): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) return 10;
+    return Math.max(1, Math.floor(value));
+  }
+
+  private normalizeMachineSizeConfig(
+    configValue: unknown,
+    fallbackTotal = 10,
+  ): { s: number; m: number; l: number; total: number } {
+    const fallback = this.normalizeTotalWashingMachines(fallbackTotal);
+
+    if (!configValue || typeof configValue !== 'object') {
+      return { s: fallback, m: 0, l: 0, total: fallback };
+    }
+
+    const raw = configValue as Record<string, unknown>;
+    const s = Math.max(0, Math.floor(Number(raw.s) || 0));
+    const m = Math.max(0, Math.floor(Number(raw.m) || 0));
+    const l = Math.max(0, Math.floor(Number(raw.l) || 0));
+    const total = s + m + l;
+
+    if (total <= 0) {
+      return { s: fallback, m: 0, l: 0, total: fallback };
+    }
+
+    return { s, m, l, total };
+  }
 
   private async migrateLegacyShopsIfNeeded() {
     if (this.migrationDone) return;
@@ -26,7 +56,9 @@ export class MapService {
     const shopCount = await this.shopModel.countDocuments();
     if (shopCount > 0) return;
 
-    const legacyShops = await this.addressModel.find({ ownerType: 'shop' }).lean();
+    const legacyShops = await this.addressModel
+      .find({ ownerType: 'shop' })
+      .lean();
     if (!legacyShops.length) return;
 
     const docs = legacyShops
@@ -37,6 +69,11 @@ export class MapService {
         phoneNumber: item.phoneNumber || '',
         photoImage: item.photoImage || '',
         ownerId: item.ownerId || 'legacy',
+        totalWashingMachines: 10,
+        machineSizeConfig: { s: 10, m: 0, l: 0 },
+        approvalStatus: 'approved',
+        approvedBy: null,
+        approvedAt: null,
         location: item.location,
       }));
 
@@ -67,11 +104,17 @@ export class MapService {
   private persistShopPhoto(photoImage?: string): string {
     if (!photoImage || typeof photoImage !== 'string') return '';
 
-    if (photoImage.startsWith('/uploads/shop/') || photoImage.startsWith('http://') || photoImage.startsWith('https://')) {
+    if (
+      photoImage.startsWith('/uploads/shop/') ||
+      photoImage.startsWith('http://') ||
+      photoImage.startsWith('https://')
+    ) {
       return photoImage;
     }
 
-    const match = photoImage.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    const match = photoImage.match(
+      /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/,
+    );
     if (!match) {
       return photoImage;
     }
@@ -104,7 +147,8 @@ export class MapService {
 
   private toLngLat(input: any): [number, number] | null {
     if (!input) return null;
-    if (input.type === 'Point' && Array.isArray(input.coordinates)) return [input.coordinates[0], input.coordinates[1]];
+    if (input.type === 'Point' && Array.isArray(input.coordinates))
+      return [input.coordinates[0], input.coordinates[1]];
     if ('lat' in input && 'lng' in input) return [input.lng, input.lat];
     if (Array.isArray(input) && input.length >= 2) return [input[0], input[1]];
     return null;
@@ -123,7 +167,14 @@ export class MapService {
     const lat2 = toRad(b[1]);
     const sinDLat = Math.sin(dLat / 2);
     const sinDLon = Math.sin(dLon / 2);
-    const c = 2 * Math.asin(Math.sqrt(sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon));
+    const c =
+      2 *
+      Math.asin(
+        Math.sqrt(
+          sinDLat * sinDLat +
+            Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon,
+        ),
+      );
     return Math.round(R * c * 1000) / 1000; // meters->km rounded to 3 decimals
   }
 
@@ -144,14 +195,24 @@ export class MapService {
 
   async createAddress(payload: any) {
     const loc = this.normalizeLocation(payload.location);
-    const doc = new this.addressModel({ ownerType: payload.ownerType, ownerId: payload.ownerId, label: payload.label, location: loc });
+    const doc = new this.addressModel({
+      ownerType: payload.ownerType,
+      ownerId: payload.ownerId,
+      label: payload.label,
+      location: loc,
+    });
     return doc.save();
   }
 
-  async createShopPin(ownerId: string, payload: any) {
+  async createShopPin(ownerId: string, payload: any, creatorRole: string) {
     const location = this.normalizeLocation(payload.location);
     const shopName = payload.shopName || payload.label || 'Laundry Shop';
     const savedPhoto = this.persistShopPhoto(payload.photoImage || '');
+    const isAdminCreator = creatorRole === 'admin';
+    const machineConfig = this.normalizeMachineSizeConfig(
+      payload.machineSizeConfig,
+      payload.totalWashingMachines,
+    );
 
     const doc = new this.shopModel({
       ownerId,
@@ -159,6 +220,15 @@ export class MapService {
       shopName,
       phoneNumber: payload.phoneNumber || '',
       photoImage: savedPhoto,
+      totalWashingMachines: machineConfig.total,
+      machineSizeConfig: {
+        s: machineConfig.s,
+        m: machineConfig.m,
+        l: machineConfig.l,
+      },
+      approvalStatus: isAdminCreator ? 'approved' : 'pending',
+      approvedBy: isAdminCreator ? ownerId : null,
+      approvedAt: isAdminCreator ? new Date() : null,
       location,
     });
 
@@ -168,16 +238,15 @@ export class MapService {
   async listShopPins() {
     await this.migrateLegacyShopsIfNeeded();
 
-    return this.shopModel
-      .find()
-      .sort({ createdAt: -1 })
-      .lean();
+    return this.shopModel.find().sort({ createdAt: -1 }).lean();
   }
 
   async updateShopPin(shopId: string, payload: any) {
     const existing = await this.shopModel.findOne({ _id: shopId }).lean();
     const legacyExisting = !existing
-      ? await this.addressModel.findOne({ _id: shopId, ownerType: 'shop' }).lean()
+      ? await this.addressModel
+          .findOne({ _id: shopId, ownerType: 'shop' })
+          .lean()
       : null;
     const target = existing || legacyExisting;
     if (!target) return null;
@@ -186,7 +255,30 @@ export class MapService {
 
     if (payload.shopName !== undefined) updateData.shopName = payload.shopName;
     if (payload.label !== undefined) updateData.label = payload.label;
-    if (payload.phoneNumber !== undefined) updateData.phoneNumber = payload.phoneNumber;
+    if (payload.phoneNumber !== undefined)
+      updateData.phoneNumber = payload.phoneNumber;
+    if (
+      payload.totalWashingMachines !== undefined ||
+      payload.machineSizeConfig !== undefined
+    ) {
+      const existingTotal = Number((target as any)?.totalWashingMachines) || 10;
+      const fallbackTotal =
+        payload.totalWashingMachines !== undefined
+          ? payload.totalWashingMachines
+          : existingTotal;
+
+      const normalized = this.normalizeMachineSizeConfig(
+        payload.machineSizeConfig,
+        fallbackTotal,
+      );
+
+      updateData.totalWashingMachines = normalized.total;
+      updateData.machineSizeConfig = {
+        s: normalized.s,
+        m: normalized.m,
+        l: normalized.l,
+      };
+    }
     if (payload.photoImage !== undefined) {
       const nextPhoto = this.persistShopPhoto(payload.photoImage);
       updateData.photoImage = nextPhoto;
@@ -194,7 +286,8 @@ export class MapService {
         this.deleteShopPhotoByPath(target.photoImage);
       }
     }
-    if (payload.location !== undefined) updateData.location = this.normalizeLocation(payload.location);
+    if (payload.location !== undefined)
+      updateData.location = this.normalizeLocation(payload.location);
 
     if (existing) {
       return this.shopModel
@@ -203,7 +296,11 @@ export class MapService {
     }
 
     return this.addressModel
-      .findOneAndUpdate({ _id: shopId, ownerType: 'shop' }, { $set: updateData }, { new: true })
+      .findOneAndUpdate(
+        { _id: shopId, ownerType: 'shop' },
+        { $set: updateData },
+        { new: true },
+      )
       .lean();
   }
 
@@ -225,6 +322,22 @@ export class MapService {
     }
 
     return deleted;
+  }
+
+  async approveShopPin(shopId: string, approverUserId: string) {
+    return this.shopModel
+      .findOneAndUpdate(
+        { _id: shopId },
+        {
+          $set: {
+            approvalStatus: 'approved',
+            approvedBy: approverUserId,
+            approvedAt: new Date(),
+          },
+        },
+        { new: true },
+      )
+      .lean();
   }
 
   async listAddresses(filter = {}) {
@@ -254,18 +367,33 @@ export class MapService {
 
   normalizeLocation(input: any) {
     if (!input) return null;
-    if (input.type === 'Point' && Array.isArray(input.coordinates)) return { type: 'Point', coordinates: input.coordinates };
-    if ('lat' in input && 'lng' in input) return { type: 'Point', coordinates: [input.lng, input.lat] };
-    if (Array.isArray(input) && input.length >= 2) return { type: 'Point', coordinates: [input[0], input[1]] };
+    if (input.type === 'Point' && Array.isArray(input.coordinates))
+      return { type: 'Point', coordinates: input.coordinates };
+    if ('lat' in input && 'lng' in input)
+      return { type: 'Point', coordinates: [input.lng, input.lat] };
+    if (Array.isArray(input) && input.length >= 2)
+      return { type: 'Point', coordinates: [input[0], input[1]] };
     return null;
   }
 
-  async snapshotOrderLocation(orderId: string, type: string, loc: any, extra?: any) {
+  async snapshotOrderLocation(
+    orderId: string,
+    type: string,
+    loc: any,
+    extra?: any,
+  ) {
     const location = this.normalizeLocation(loc);
     const distanceKm = extra?.distanceKm ?? null;
     const durationMin = extra?.durationMin ?? null;
     const deliveryFee = extra?.deliveryFee ?? null;
-    const doc = new this.orderLocationModel({ orderId, type, location, distanceKm, durationMin, deliveryFee });
+    const doc = new this.orderLocationModel({
+      orderId,
+      type,
+      location,
+      distanceKm,
+      durationMin,
+      deliveryFee,
+    });
     return doc.save();
   }
 

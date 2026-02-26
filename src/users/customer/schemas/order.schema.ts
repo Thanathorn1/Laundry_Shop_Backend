@@ -15,6 +15,15 @@ export class Order {
   @Prop({ type: String, required: true, default: '' })
   contactPhone: string;
 
+  @Prop({ type: String, enum: ['wash', 'dry'], default: 'wash' })
+  laundryType: 'wash' | 'dry';
+
+  @Prop({ type: String, enum: ['s', 'm', 'l', '0-4', '6-10', '10-20'], default: 's' })
+  weightCategory: 's' | 'm' | 'l' | '0-4' | '6-10' | '10-20';
+
+  @Prop({ type: Number, default: 50 })
+  serviceTimeMinutes: number;
+
   @Prop({ type: String, default: '' })
   description: string;
 
@@ -60,10 +69,29 @@ export class Order {
 
   @Prop({
     type: String,
-    enum: ['pending', 'assigned', 'picked_up', 'at_shop', 'washing', 'laundry_done', 'out_for_delivery', 'completed', 'cancelled'],
+    enum: [
+      'pending',
+      'assigned',
+      'picked_up',
+      'at_shop',
+      'washing',
+      'laundry_done',
+      'out_for_delivery',
+      'completed',
+      'cancelled',
+    ],
     default: 'pending',
   })
-  status: 'pending' | 'assigned' | 'picked_up' | 'at_shop' | 'washing' | 'laundry_done' | 'out_for_delivery' | 'completed' | 'cancelled';
+  status:
+    | 'pending'
+    | 'assigned'
+    | 'picked_up'
+    | 'at_shop'
+    | 'washing'
+    | 'laundry_done'
+    | 'out_for_delivery'
+    | 'completed'
+    | 'cancelled';
 
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   riderId: Types.ObjectId | null;
@@ -94,7 +122,7 @@ OrderSchema.index({ status: 1 });
 OrderSchema.index({ riderId: 1 });
 OrderSchema.index({ shopId: 1 });
 OrderSchema.index({ employeeId: 1 });
-OrderSchema.index({ 'pickupLocation': '2dsphere' });
+OrderSchema.index({ pickupLocation: '2dsphere' });
 
 // Auto-delete completed/cancelled orders after 1 day (86400 seconds)
 OrderSchema.index({ completedAt: 1 }, { expireAfterSeconds: 86400 });

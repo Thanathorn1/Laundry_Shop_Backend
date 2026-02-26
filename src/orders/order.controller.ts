@@ -9,20 +9,20 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('orders')
 export class OrderController {
-    constructor(private readonly orderService: OrderService) { }
+  constructor(private readonly orderService: OrderService) {}
 
-    // Customer create order
-    @UseGuards(AccessTokenGuard)
-    @Post()
-    async create(@Req() req, @Body() dto: CreateOrderDto) {
-        return this.orderService.create(req.user.sub, dto);
-    }
+  // Customer create order
+  @UseGuards(AccessTokenGuard)
+  @Post()
+  async create(@Req() req, @Body() dto: CreateOrderDto) {
+    return this.orderService.create(req.user.sub, dto);
+  }
 
-    // Rider view map orders
-    @UseGuards(AccessTokenGuard, RolesGuard)
-    @Roles('rider')
-    @Get('/rider/map')
-    async getOrdersForRider() {
-        return this.orderService.findOrdersForRider();
-    }
+  // Rider view map orders
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('rider')
+  @Get('/rider/map')
+  async getOrdersForRider() {
+    return this.orderService.findOrdersForRider();
+  }
 }

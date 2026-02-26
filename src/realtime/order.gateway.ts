@@ -38,12 +38,14 @@ export class OrderGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: RegisterPayload,
   ) {
-    const userId = typeof payload?.userId === 'string' ? payload.userId.trim() : '';
+    const userId =
+      typeof payload?.userId === 'string' ? payload.userId.trim() : '';
     if (userId) {
       client.join(this.roomForUser(userId));
     }
 
-    const shopId = typeof payload?.shopId === 'string' ? payload.shopId.trim() : '';
+    const shopId =
+      typeof payload?.shopId === 'string' ? payload.shopId.trim() : '';
     if (shopId) {
       client.join(this.roomForShop(shopId));
     }

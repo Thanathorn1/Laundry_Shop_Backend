@@ -1,61 +1,47 @@
-import { Module } from '@nestjs/common'; 
+import { Module } from '@nestjs/common';
 
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
-
-import { ConfigModule, ConfigService } from '@nestjs/config'; 
-
-import { MongooseModule } from '@nestjs/mongoose'; 
+import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MapModule } from './map/map.module';
 import { RiderModule } from './users/rider/rider.module';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'; 
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
-import { APP_GUARD } from '@nestjs/core'; 
- 
+import { APP_GUARD } from '@nestjs/core';
 
-@Module({ 
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    // ตั้งค่า rate limiting โดยใช้ ThrottlerModule
 
-  imports: [ConfigModule.forRoot({ 
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000, // 1 minute
 
-    isGlobal: true, 
+        limit: 100, // 100 requests per minute
+      },
+    ]),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
 
-  }),
-    // ตั้งค่า rate limiting โดยใช้ ThrottlerModule  
+      inject: [ConfigService],
 
-  ThrottlerModule.forRoot([ 
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGO_URI'),
+      }),
+    }),
+    UsersModule,
+    AuthModule,
+    MapModule,
+    RiderModule,
+  ],
 
-    { 
+  // *** สำหรับการตั้งค่า global guard กรณีกันโดนยิง API รัว ๆ ทั้งระบบ ThrottlerGuard ***
 
-      ttl: 60_000,  // 1 minute 
-
-      limit: 100,   // 100 requests per minute 
-
-    }, 
-
-  ]), 
-  MongooseModule.forRootAsync({ 
-
-    imports: [ConfigModule], 
-
-    inject: [ConfigService], 
-
-    useFactory: (configService: ConfigService) => ({ 
-
-      uri: configService.get<string>('MONGO_URI'), 
-
-    }), 
-
-  }), UsersModule, AuthModule, MapModule, RiderModule], 
-
-
-
-  
-
-  // *** สำหรับการตั้งค่า global guard กรณีกันโดนยิง API รัว ๆ ทั้งระบบ ThrottlerGuard *** 
-
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }], 
-
-}) 
-
-export class AppModule { } 
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+})
+export class AppModule {}

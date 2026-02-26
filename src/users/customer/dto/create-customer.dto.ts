@@ -1,4 +1,12 @@
-import { IsEmail, IsString, IsOptional, IsNumber, Min, Max, IsArray } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+  IsArray,
+} from 'class-validator';
 
 export class CreateCustomerDto {
   @IsOptional()
@@ -126,6 +134,18 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsString()
+  laundryType?: 'wash' | 'dry';
+
+  @IsOptional()
+  @IsString()
+  weightCategory?: 's' | 'm' | 'l' | '0-4' | '6-10' | '10-20';
+
+  @IsOptional()
+  @IsNumber()
+  serviceTimeMinutes?: number;
+
+  @IsOptional()
+  @IsString()
   pickupType?: 'now' | 'schedule';
 
   @IsOptional()
@@ -148,6 +168,18 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsString()
   contactPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  laundryType?: 'wash' | 'dry';
+
+  @IsOptional()
+  @IsString()
+  weightCategory?: 's' | 'm' | 'l' | '0-4' | '6-10' | '10-20';
+
+  @IsOptional()
+  @IsNumber()
+  serviceTimeMinutes?: number;
 
   @IsOptional()
   @IsString()

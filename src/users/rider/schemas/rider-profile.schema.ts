@@ -5,32 +5,32 @@ export type RiderProfileDocument = HydratedDocument<RiderProfile>;
 
 @Schema({ timestamps: true })
 export class RiderProfile {
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
-    rider: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, unique: true })
+  rider: Types.ObjectId;
 
-    @Prop({ required: true })
-    fullName: string;
+  @Prop({ required: true })
+  fullName: string;
 
-    @Prop({ required: true })
-    licensePlate: string;
+  @Prop({ required: true })
+  licensePlate: string;
 
-    @Prop({ required: true })
-    drivingLicense: string;
+  @Prop({ required: true })
+  drivingLicense: string;
 
-    @Prop({ required: true })
-    phone: string;
+  @Prop({ required: true })
+  phone: string;
 
-    @Prop({ required: true })
-    address: string;
+  @Prop({ required: true })
+  address: string;
 
-    @Prop()
-    vehicleImageUrl: string;
+  @Prop()
+  vehicleImageUrl: string;
 
-    @Prop()
-    riderImageUrl: string;
+  @Prop()
+  riderImageUrl: string;
 
-    @Prop({ default: false })
-    isApproved: boolean;
+  @Prop({ default: false })
+  isApproved: boolean;
 }
 
 export const RiderProfileSchema = SchemaFactory.createForClass(RiderProfile);

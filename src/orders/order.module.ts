@@ -7,10 +7,10 @@ import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }])
-    ],
-    controllers: [OrderController],
-    providers: [OrderService],
+  imports: [
+    MongooseModule.forFeature([{ name: Order.name, schema: OrderSchema }]),
+  ],
+  controllers: [OrderController],
+  providers: [OrderService],
 })
-export class OrderModule { }
+export class OrderModule {}

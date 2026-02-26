@@ -1,6 +1,23 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Request, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { UsersService } from '../users.service';
-import { CreateCustomerDto, CreateReviewDto, CreateOrderDto, UpdateOrderDto } from './dto/create-customer.dto';
+import {
+  CreateCustomerDto,
+  CreateReviewDto,
+  CreateOrderDto,
+  UpdateOrderDto,
+} from './dto/create-customer.dto';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 
 @Controller('customers')
@@ -14,15 +31,18 @@ export class CustomersController {
   @UseGuards(AccessTokenGuard)
   @Post('register')
   async registerCustomer(@Request() req, @Body() dto: CreateCustomerDto) {
-    const user = await this.usersService.upsertUserProfile(this.getAuthUserId(req), {
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      phoneNumber: dto.phoneNumber,
-      profileImage: dto.profileImage,
-      latitude: dto.latitude,
-      longitude: dto.longitude,
-      address: dto.address,
-    });
+    const user = await this.usersService.upsertUserProfile(
+      this.getAuthUserId(req),
+      {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phoneNumber: dto.phoneNumber,
+        profileImage: dto.profileImage,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        address: dto.address,
+      },
+    );
     return user;
   }
 
@@ -44,7 +64,8 @@ export class CustomersController {
   @Post('addresses')
   async addSavedAddress(
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       label: string;
       address: string;
       latitude: number;
@@ -82,12 +103,18 @@ export class CustomersController {
 
   @UseGuards(AccessTokenGuard)
   @Put('orders/:orderId')
-  async updateOrder(@Param('orderId') orderId: string, @Request() req, @Body() dto: UpdateOrderDto) {
+  async updateOrder(
+    @Param('orderId') orderId: string,
+    @Request() req,
+    @Body() dto: UpdateOrderDto,
+  ) {
     const userId = this.getAuthUserId(req);
     const order = await this.usersService.findOrderById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-    if (order.customerId.toString() !== userId) throw new ForbiddenException('Not your order');
-    if (order.status !== 'pending') throw new ForbiddenException('Only pending orders can be edited');
+    if (order.customerId.toString() !== userId)
+      throw new ForbiddenException('Not your order');
+    if (order.status !== 'pending')
+      throw new ForbiddenException('Only pending orders can be edited');
     return this.usersService.updateOrder(orderId, dto);
   }
 
@@ -97,21 +124,28 @@ export class CustomersController {
     const userId = this.getAuthUserId(req);
     const order = await this.usersService.findOrderById(orderId);
     if (!order) throw new NotFoundException('Order not found');
-    if (order.customerId.toString() !== userId) throw new ForbiddenException('Not your order');
-    if (order.status !== 'pending') throw new ForbiddenException('Only pending orders can be deleted');
+    if (order.customerId.toString() !== userId)
+      throw new ForbiddenException('Not your order');
+    if (order.status !== 'pending')
+      throw new ForbiddenException('Only pending orders can be deleted');
     return this.usersService.deleteOrder(orderId);
   }
 
   @UseGuards(AccessTokenGuard)
   @Put('orders/:orderId/status')
-  async updateOrderStatus(@Param('orderId') orderId: string, @Body() body: { status: string }) {
+  async updateOrderStatus(
+    @Param('orderId') orderId: string,
+    @Body() body: { status: string },
+  ) {
     return this.usersService.updateOrderStatus(orderId, body.status);
   }
 
   @UseGuards(AccessTokenGuard)
   @Post('reviews')
   async createReview(@Request() req, @Body() dto: CreateReviewDto) {
-    const customer = await this.usersService.findCustomerByUserId(this.getAuthUserId(req));
+    const customer = await this.usersService.findCustomerByUserId(
+      this.getAuthUserId(req),
+    );
     if (!customer) {
       throw new NotFoundException('Customer profile not found');
     }
@@ -129,7 +163,9 @@ export class CustomersController {
   @UseGuards(AccessTokenGuard)
   @Get('reviews')
   async getMyReviews(@Request() req) {
-    const customer = await this.usersService.findCustomerByUserId(this.getAuthUserId(req));
+    const customer = await this.usersService.findCustomerByUserId(
+      this.getAuthUserId(req),
+    );
     if (!customer) {
       throw new NotFoundException('Customer profile not found');
     }
@@ -137,7 +173,13 @@ export class CustomersController {
   }
 
   @Get('nearby')
-  async getNearbyCustomers(@Body() body: { latitude: number; longitude: number; maxDistance?: number }) {
-    return this.usersService.findNearbyCustomers(body.longitude, body.latitude, body.maxDistance);
+  async getNearbyCustomers(
+    @Body() body: { latitude: number; longitude: number; maxDistance?: number },
+  ) {
+    return this.usersService.findNearbyCustomers(
+      body.longitude,
+      body.latitude,
+      body.maxDistance,
+    );
   }
 }

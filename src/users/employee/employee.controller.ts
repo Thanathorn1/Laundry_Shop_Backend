@@ -1,4 +1,16 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
 import { UsersService } from '../users.service';
 
@@ -22,7 +34,12 @@ export class EmployeeController {
   }
 
   @Get('shops/nearby')
-  async nearbyShops(@Req() req: any, @Query('lat') latRaw: string, @Query('lng') lngRaw: string, @Query('maxDistanceKm') maxRaw?: string) {
+  async nearbyShops(
+    @Req() req: any,
+    @Query('lat') latRaw: string,
+    @Query('lng') lngRaw: string,
+    @Query('maxDistanceKm') maxRaw?: string,
+  ) {
     const employeeId = await this.ensureEmployeeOrAdmin(req);
 
     const hasLat = latRaw !== undefined && latRaw !== null && latRaw !== '';
@@ -63,13 +80,18 @@ export class EmployeeController {
       throw new ForbiddenException('Employee only');
     }
 
-    const assignedShopIds = Array.isArray((actor as any).assignedShopIds) ? (actor as any).assignedShopIds.map(String) : [];
-    const canView = actor.role === 'admin' || (
-      actor.role === 'employee' &&
-      ((actor as any).assignedShopId === shopId || assignedShopIds.includes(String(shopId)))
-    );
+    const assignedShopIds = Array.isArray((actor as any).assignedShopIds)
+      ? (actor as any).assignedShopIds.map(String)
+      : [];
+    const canView =
+      actor.role === 'admin' ||
+      (actor.role === 'employee' &&
+        ((actor as any).assignedShopId === shopId ||
+          assignedShopIds.includes(String(shopId))));
     if (!canView) {
-      throw new ForbiddenException('Not allowed to view join requests for this shop');
+      throw new ForbiddenException(
+        'Not allowed to view join requests for this shop',
+      );
     }
 
     return this.usersService.listEmployeeJoinRequestsForShop(shopId);
@@ -87,7 +109,11 @@ export class EmployeeController {
       throw new BadRequestException('action must be approve or reject');
     }
 
-    return this.usersService.resolveEmployeeJoinRequest(actorUserId, employeeId, action);
+    return this.usersService.resolveEmployeeJoinRequest(
+      actorUserId,
+      employeeId,
+      action,
+    );
   }
 
   @Patch('orders/:orderId/start-wash')

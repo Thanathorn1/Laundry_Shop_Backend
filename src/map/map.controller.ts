@@ -1,4 +1,19 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Post, Put, Query, Request, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Patch,
+  Param,
+  Post,
+  Put,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { MapService } from './map.service';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import { UsersService } from '../users/users.service';
@@ -22,6 +37,20 @@ export class MapController {
     }
   }
 
+  private async ensureAdminOrEmployee(req: any) {
+    const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    if (!userId) {
+      throw new ForbiddenException('Admin or employee only');
+    }
+
+    const user = await this.usersService.findUserById(userId);
+    if (!user || (user.role !== 'admin' && user.role !== 'employee')) {
+      throw new ForbiddenException('Admin or employee only');
+    }
+
+    return user;
+  }
+
   @Post('map/distance')
   distance(@Body() body: any) {
     const { from, to } = body;
@@ -33,7 +62,8 @@ export class MapController {
   @Post('map/delivery-fee')
   deliveryFee(@Body() body: any) {
     let distance = body.distanceKm;
-    if (!distance && body.from && body.to) distance = this.mapService.distanceKm(body.from, body.to);
+    if (!distance && body.from && body.to)
+      distance = this.mapService.distanceKm(body.from, body.to);
     const fee = this.mapService.deliveryFee(distance);
     return { fee, distanceKm: distance };
   }
@@ -64,29 +94,51 @@ export class MapController {
   @UseGuards(AccessTokenGuard)
   @Post('map/shops')
   async createShop(@Request() req: any, @Body() body: any) {
-    await this.ensureAdmin(req);
+    const actor = await this.ensureAdminOrEmployee(req);
 
     const location = body?.location;
     if (!location) {
       throw new BadRequestException('location is required');
     }
 
-    const ownerId = req?.user?.userId || req?.user?.sub || req?.user?.id;
-    return this.mapService.createShopPin(ownerId, body);
+    const ownerId = String(actor._id);
+    return this.mapService.createShopPin(ownerId, body, actor.role);
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('map/shops')
   async listShops(@Request() req: any) {
-    return this.mapService.listShopPins();
+    const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    if (!userId) {
+      throw new ForbiddenException('Unauthorized');
+    }
+    return this.usersService.listVisibleShopsForUser(String(userId));
   }
 
   @UseGuards(AccessTokenGuard)
   @Put('map/shops/:shopId')
-  async updateShop(@Request() req: any, @Param('shopId') shopId: string, @Body() body: any) {
-    await this.ensureAdmin(req);
+  async updateShop(
+    @Request() req: any,
+    @Param('shopId') shopId: string,
+    @Body() body: any,
+  ) {
+    await this.ensureAdminOrEmployee(req);
 
     const updated = await this.mapService.updateShopPin(shopId, body);
+    if (!updated) throw new NotFoundException('Shop not found');
+    return updated;
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Patch('map/shops/:shopId/approve')
+  async approveShop(@Request() req: any, @Param('shopId') shopId: string) {
+    await this.ensureAdmin(req);
+
+    const approverUserId = req?.user?.userId || req?.user?.sub || req?.user?.id;
+    const updated = await this.mapService.approveShopPin(
+      shopId,
+      String(approverUserId),
+    );
     if (!updated) throw new NotFoundException('Shop not found');
     return updated;
   }
@@ -106,12 +158,17 @@ export class MapController {
   async nearbyShops(@Query() query: any) {
     const lat = Number(query.lat);
     const lng = Number(query.lng);
-    const maxDistanceKm = query.maxDistanceKm !== undefined ? Number(query.maxDistanceKm) : 5;
+    const maxDistanceKm =
+      query.maxDistanceKm !== undefined ? Number(query.maxDistanceKm) : 5;
 
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
       throw new BadRequestException('lat and lng query are required numbers');
     }
 
-    return this.mapService.listNearbyShops(lat, lng, Number.isNaN(maxDistanceKm) ? 5 : maxDistanceKm);
+    return this.mapService.listNearbyShops(
+      lat,
+      lng,
+      Number.isNaN(maxDistanceKm) ? 5 : maxDistanceKm,
+    );
   }
 }

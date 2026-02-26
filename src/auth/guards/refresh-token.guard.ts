@@ -1,11 +1,8 @@
-// src/auth/guards/refresh-token.guard.ts 
+// src/auth/guards/refresh-token.guard.ts
 
-import { Injectable } from '@nestjs/common'; 
+import { Injectable } from '@nestjs/common';
 
-import { AuthGuard } from '@nestjs/passport'; 
+import { AuthGuard } from '@nestjs/passport';
 
- 
-
-@Injectable() 
-
-export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {} 
+@Injectable()
+export class RefreshTokenGuard extends AuthGuard('jwt-refresh') {}

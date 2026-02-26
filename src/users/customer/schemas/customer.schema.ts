@@ -64,7 +64,11 @@ export class Customer {
   @Prop({ type: Number, default: 0 })
   totalReviews: number;
 
-  @Prop({ type: String, enum: ['active', 'inactive', 'suspended'], default: 'active' })
+  @Prop({
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active',
+  })
   status: 'active' | 'inactive' | 'suspended';
 
   @Prop({ type: Boolean, default: false })

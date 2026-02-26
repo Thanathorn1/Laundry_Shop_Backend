@@ -27,7 +27,11 @@ export class Review {
   @Prop({ type: Boolean, default: false })
   isAnonymous: boolean;
 
-  @Prop({ type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' })
+  @Prop({
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'approved',
+  })
   status: 'pending' | 'approved' | 'rejected';
 }
 

@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common'; 
+import { Module } from '@nestjs/common';
 
-import { MongooseModule } from '@nestjs/mongoose'; 
+import { MongooseModule } from '@nestjs/mongoose';
 
-import { UsersService } from './users.service'; 
+import { UsersService } from './users.service';
 import { User, UserSchema } from './admin/schemas/user.schema';
 import { Customer, CustomerSchema } from './customer/schemas/customer.schema';
 import { Review, ReviewSchema } from './customer/schemas/review.schema';
@@ -13,8 +13,7 @@ import { Shop, ShopSchema } from '../map/schemas/shop.schema';
 import { EmployeeController } from './employee/employee.controller';
 import { RealtimeModule } from '../realtime/realtime.module';
 
-@Module({ 
-
+@Module({
   imports: [
     RealtimeModule,
     MongooseModule.forFeature([
@@ -26,12 +25,10 @@ import { RealtimeModule } from '../realtime/realtime.module';
     ]),
   ],
 
-  providers: [UsersService], 
+  providers: [UsersService],
 
   controllers: [CustomersController, AdminUsersController, EmployeeController],
 
-  exports: [UsersService], 
-
-}) 
-
-export class UsersModule { } 
+  exports: [UsersService],
+})
+export class UsersModule {}

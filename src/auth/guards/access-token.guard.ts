@@ -1,11 +1,8 @@
-// src/auth/guards/access-token.guard.ts 
+// src/auth/guards/access-token.guard.ts
 
-import { Injectable } from '@nestjs/common'; 
+import { Injectable } from '@nestjs/common';
 
-import { AuthGuard } from '@nestjs/passport'; 
+import { AuthGuard } from '@nestjs/passport';
 
- 
-
-@Injectable() 
-
-export class AccessTokenGuard extends AuthGuard('jwt') {} 
+@Injectable()
+export class AccessTokenGuard extends AuthGuard('jwt') {}

@@ -39,13 +39,17 @@ function fileExtFromMime(mimeType: string): string {
 async function migrate() {
   const mongoUri = process.env.MONGO_URI;
   if (!mongoUri) {
-    throw new Error('MONGO_URI is missing. Set environment before running migration.');
+    throw new Error(
+      'MONGO_URI is missing. Set environment before running migration.',
+    );
   }
 
   await mongoose.connect(mongoUri);
   const uploadDir = ensureUploadDir();
 
-  const orders = await OrderModel.find({ images: { $exists: true, $ne: [] } }).exec();
+  const orders = await OrderModel.find({
+    images: { $exists: true, $ne: [] },
+  }).exec();
 
   let scannedOrders = 0;
   let updatedOrders = 0;
@@ -63,7 +67,9 @@ async function migrate() {
         return imageValue as any;
       }
 
-      const dataUrlMatch = imageValue.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      const dataUrlMatch = imageValue.match(
+        /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/,
+      );
       if (!dataUrlMatch) {
         skippedImages += 1;
         return imageValue;
@@ -93,7 +99,9 @@ async function migrate() {
   console.log(`- Scanned orders: ${scannedOrders}`);
   console.log(`- Updated orders: ${updatedOrders}`);
   console.log(`- Converted images: ${convertedImages}`);
-  console.log(`- Skipped images (already file URL or invalid): ${skippedImages}`);
+  console.log(
+    `- Skipped images (already file URL or invalid): ${skippedImages}`,
+  );
 
   await mongoose.disconnect();
 }
