@@ -32,6 +32,13 @@ import { APP_GUARD } from '@nestjs/core';
 
       useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
+        serverSelectionTimeoutMS: 15000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 15000,
+        maxPoolSize: 10,
+        minPoolSize: 1,
+        retryWrites: true,
+        retryReads: true,
       }),
     }),
     UsersModule,

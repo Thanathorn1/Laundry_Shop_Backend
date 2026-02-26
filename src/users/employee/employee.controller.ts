@@ -127,4 +127,10 @@ export class EmployeeController {
     const employeeId = await this.ensureEmployeeOrAdmin(req);
     return this.usersService.employeeFinishWash(orderId, employeeId);
   }
+
+  @Patch('orders/:orderId/finish-dry')
+  async finishDry(@Req() req: any, @Param('orderId') orderId: string) {
+    const employeeId = await this.ensureEmployeeOrAdmin(req);
+    return this.usersService.employeeFinishDry(orderId, employeeId);
+  }
 }

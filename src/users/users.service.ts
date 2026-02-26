@@ -101,11 +101,13 @@ export class UsersService {
     const serviceTimeMinutes = this.normalizeServiceTimeMinutes(
       params.serviceTimeMinutes,
     );
-    const isDryLaundry = params.laundryType === 'dry';
-    const unitPrice = isDryLaundry
-      ? 20
-      : this.getWashUnitPrice(params.weightCategory);
-    const baseLaundryPrice = (serviceTimeMinutes / 50) * unitPrice;
+    const washUnitPrice = this.getWashUnitPrice(params.weightCategory);
+    const washPrice =
+      params.laundryType === 'dry'
+        ? 0
+        : (serviceTimeMinutes / 50) * washUnitPrice;
+    const dryPrice = (serviceTimeMinutes / 50) * 20;
+    const baseLaundryPrice = washPrice + dryPrice;
     const deliveryFee = this.DELIVERY_FEE;
     const pickupServiceFee =
       params.pickupType === 'now' ? this.PICKUP_NOW_EXTRA_FEE : 0;
@@ -132,7 +134,7 @@ export class UsersService {
   private async getShopMachineStats(shopId: string) {
     const inUseCount = await this.orderModel.countDocuments({
       shopId: new Types.ObjectId(shopId) as any,
-      status: { $in: ['at_shop', 'washing'] },
+      status: { $in: ['at_shop', 'washing', 'drying'] },
     });
 
     const shop = await this.shopModel
@@ -200,7 +202,7 @@ export class UsersService {
             {
               $match: {
                 shopId: { $in: shopIds as any },
-                status: { $in: ['at_shop', 'washing'] },
+                status: { $in: ['at_shop', 'washing', 'drying'] },
               },
             },
             {
@@ -1421,12 +1423,12 @@ export class UsersService {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException('Order not found');
 
-    if (!['at_shop', 'washing'].includes(order.status)) {
+    if (order.status !== 'at_shop') {
       throw new BadRequestException('Order is not at shop');
     }
 
     order.employeeId = new Types.ObjectId(employeeId) as any;
-    order.status = 'washing';
+    order.status = order.laundryType === 'dry' ? 'drying' : 'washing';
     if (!order.washingStartedAt) {
       order.washingStartedAt = new Date();
     }
@@ -1440,8 +1442,31 @@ export class UsersService {
     const order = await this.orderModel.findById(orderId).exec();
     if (!order) throw new NotFoundException('Order not found');
 
-    if (!['washing', 'at_shop'].includes(order.status)) {
+    if (order.laundryType === 'dry') {
+      throw new BadRequestException('Dry order must be finished via finish-dry');
+    }
+
+    if (order.status !== 'washing') {
       throw new BadRequestException('Order is not in washing process');
+    }
+
+    order.employeeId = new Types.ObjectId(employeeId) as any;
+    order.status = 'drying';
+    if (!order.washingStartedAt) {
+      order.washingStartedAt = new Date();
+    }
+    await order.save();
+
+    this.orderGateway.emitOrderUpdate(order);
+    return order;
+  }
+
+  async employeeFinishDry(orderId: string, employeeId: string) {
+    const order = await this.orderModel.findById(orderId).exec();
+    if (!order) throw new NotFoundException('Order not found');
+
+    if (order.status !== 'drying') {
+      throw new BadRequestException('Order is not in drying process');
     }
 
     order.employeeId = new Types.ObjectId(employeeId) as any;

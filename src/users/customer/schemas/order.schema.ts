@@ -75,6 +75,7 @@ export class Order {
       'picked_up',
       'at_shop',
       'washing',
+      'drying',
       'laundry_done',
       'out_for_delivery',
       'completed',
@@ -88,6 +89,7 @@ export class Order {
     | 'picked_up'
     | 'at_shop'
     | 'washing'
+    | 'drying'
     | 'laundry_done'
     | 'out_for_delivery'
     | 'completed'
