@@ -79,6 +79,31 @@ export class UsersService {
     });
   }
 
+  private deleteOrderImageByPath(imagePath?: string) {
+    if (!imagePath || !imagePath.startsWith('/uploads/customerorder/')) return;
+
+    const fileName = path.basename(imagePath);
+    const absolutePath = path.join(
+      process.cwd(),
+      'uploads',
+      'customerorder',
+      fileName,
+    );
+
+    if (!fs.existsSync(absolutePath)) return;
+
+    try {
+      fs.unlinkSync(absolutePath);
+    } catch {
+      // ignore cleanup error
+    }
+  }
+
+  private deleteOrderImages(images?: string[]) {
+    if (!Array.isArray(images) || images.length === 0) return;
+    images.forEach((imagePath) => this.deleteOrderImageByPath(imagePath));
+  }
+
   private normalizeServiceTimeMinutes(value: unknown): number {
     if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) {
       return 50;
@@ -1068,12 +1093,26 @@ export class UsersService {
       throw new NotFoundException('Order not found');
     }
 
+    const previousImages = Array.isArray(existingOrder.images)
+      ? [...existingOrder.images]
+      : [];
+
     const updateData: any = {};
     if (data.productName) updateData.productName = data.productName;
     if (data.description !== undefined)
       updateData.description = data.description;
-    if (data.images !== undefined)
-      updateData.images = this.persistOrderImages(data.images);
+    if (data.images !== undefined) {
+      const nextImages = this.persistOrderImages(data.images);
+      updateData.images = nextImages;
+
+      const keptImages = new Set(
+        nextImages.filter((item) => typeof item === 'string'),
+      );
+      const removedImages = previousImages.filter(
+        (item) => typeof item === 'string' && !keptImages.has(item),
+      );
+      this.deleteOrderImages(removedImages);
+    }
     if (data.contactPhone) updateData.contactPhone = data.contactPhone;
     if (data.laundryType !== undefined)
       updateData.laundryType = data.laundryType;
@@ -1135,18 +1174,27 @@ export class UsersService {
       .exec();
   }
 
-  deleteOrder(orderId: string) {
-    return this.orderModel.findByIdAndDelete(orderId).exec();
+  async deleteOrder(orderId: string) {
+    const deleted = await this.orderModel.findByIdAndDelete(orderId).exec();
+    if (deleted) {
+      this.deleteOrderImages(deleted.images);
+    }
+    return deleted;
   }
 
   async updateOrderStatus(orderId: string, status: string) {
-    const updated = await this.orderModel
-      .findByIdAndUpdate(
-        orderId,
-        { status, ...(status === 'completed' && { completedAt: new Date() }) },
-        { new: true },
-      )
-      .exec();
+    const updated = await this.orderModel.findById(orderId).exec();
+    if (!updated) return null;
+
+    updated.status = status as any;
+    const isTerminalStatus = status === 'completed' || status === 'cancelled';
+    if (isTerminalStatus) {
+      updated.completedAt = new Date();
+      this.deleteOrderImages(updated.images);
+      updated.images = [];
+    }
+
+    await updated.save();
 
     if (updated) {
       this.orderGateway.emitOrderUpdate(updated);
@@ -1301,6 +1349,8 @@ export class UsersService {
 
     order.status = 'completed';
     order.completedAt = new Date();
+    this.deleteOrderImages(order.images);
+    order.images = [];
     await order.save();
 
     this.orderGateway.emitOrderUpdate(order);

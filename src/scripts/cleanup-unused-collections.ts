@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
-
+//npx ts-node src/scripts/cleanup-unused-collections.ts --apply
 const KEEP_COLLECTIONS = new Set([
   'users',
   'shops',
