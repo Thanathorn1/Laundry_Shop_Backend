@@ -1,0 +1,818 @@
+{
+  "info": {
+    "name": "Laundry Shop API",
+    "_postman_id": "8c8fc9d0-4e6f-4d71-9c8e-9b8a6bc7f6f1",
+    "description": "Import this collection into Postman. Set baseUrl first. Sign in to auto-save tokens.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "resetToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "employeeId", "value": "" },
+    { "key": "shopId", "value": "" },
+    { "key": "riderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer1@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"confirmPassword\": \"Passw0rd!\",\n  \"role\": \"user\",\n  \"firstName\": \"Somchai\",\n  \"lastName\": \"Jaidee\",\n  \"phoneNumber\": \"0891234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Sign In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "const at = jsonData.accessToken || jsonData.data?.accessToken || jsonData.tokens?.accessToken;",
+                  "const rt = jsonData.refreshToken || jsonData.data?.refreshToken || jsonData.tokens?.refreshToken;",
+                  "if (at) pm.collectionVariables.set('accessToken', at);",
+                  "if (rt) pm.collectionVariables.set('refreshToken', rt);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer1@example.com\",\n  \"password\": \"Passw0rd!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signin",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signin"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{refreshToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer1@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"NewPassw0rd!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Register Customer Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Somchai\",\n  \"lastName\": \"Jaidee\",\n  \"phoneNumber\": \"0891234567\",\n  \"profileImage\": \"\",\n  \"latitude\": 13.7563,\n  \"longitude\": 100.5018,\n  \"address\": \"Bangkok\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "register"]
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Somchai\",\n  \"lastName\": \"Jaidee\",\n  \"phoneNumber\": \"0891234567\",\n  \"address\": \"Bangkok, Thailand\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "update"]
+            }
+          }
+        },
+        {
+          "name": "Add Saved Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"address\": \"123 Main St\",\n  \"latitude\": 13.7563,\n  \"longitude\": 100.5018,\n  \"isDefault\": true,\n  \"contactPhone\": \"0891234567\",\n  \"pickupType\": \"now\",\n  \"pickupAt\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/addresses",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "addresses"]
+            }
+          }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Laundry bag #1\",\n  \"description\": \"Handle carefully\",\n  \"laundryType\": \"wash\",\n  \"weightCategory\": \"s\",\n  \"serviceTimeMinutes\": 50,\n  \"pickupLatitude\": 13.7563,\n  \"pickupLongitude\": 100.5018,\n  \"pickupAddress\": \"CNX\",\n  \"deliveryLatitude\": 13.7563,\n  \"deliveryLongitude\": 100.5018,\n  \"deliveryAddress\": \"CNX\",\n  \"contactPhone\": \"0967517739\",\n  \"pickupType\": \"now\",\n  \"pickupAt\": null,\n  \"images\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Update Order (Edit)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Laundry bag #1 (edited)\",\n  \"description\": \"Please return before 6 PM\",\n  \"contactPhone\": \"0967517739\",\n  \"laundryType\": \"dry\",\n  \"weightCategory\": \"m\",\n  \"serviceTimeMinutes\": 70,\n  \"pickupAddress\": \"CNX - Building B\",\n  \"pickupLatitude\": 13.757,\n  \"pickupLongitude\": 100.502,\n  \"pickupType\": \"schedule\",\n  \"pickupAt\": \"2026-03-01T10:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/orders/{{orderId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "orders", "{{orderId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewType\": \"rider\",\n  \"targetId\": \"PUT_TARGET_ID_HERE\",\n  \"rating\": 5,\n  \"comment\": \"Excellent service\",\n  \"isAnonymous\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Get My Reviews",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Get Saved Addresses",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/saved-addresses",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "saved-addresses"]
+            }
+          }
+        },
+        {
+          "name": "Nearby Customers (as implemented)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 13.7563,\n  \"longitude\": 100.5018,\n  \"maxDistance\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/nearby",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "nearby"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/customers", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "customers"] }
+          }
+        },
+        {
+          "name": "List Riders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/riders", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "riders"] }
+          }
+        },
+        {
+          "name": "List Admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/admins", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "admins"] }
+          }
+        },
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees"] }
+          }
+        },
+        {
+          "name": "Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"employee1@example.com\",\n  \"password\": \"Passw0rd!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees"] }
+          }
+        },
+        {
+          "name": "List Employees By Shop",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees/by-shop", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees", "by-shop"] }
+          }
+        },
+        {
+          "name": "List Employee Join Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees/join-requests", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees", "join-requests"] }
+          }
+        },
+        {
+          "name": "Resolve Employee Join Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees/{{employeeId}}/join-request", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees", "{{employeeId}}", "join-request"] }
+          }
+        },
+        {
+          "name": "Assign Employee Shop",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": \"{{shopId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees/{{employeeId}}/shop", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees", "{{employeeId}}", "shop"] }
+          }
+        },
+        {
+          "name": "Change User Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"employee\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}/role", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}", "role"] }
+          }
+        },
+        {
+          "name": "Set User Ban",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"days\",\n  \"days\": 7\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}/ban", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}", "ban"] }
+          }
+        },
+        {
+          "name": "Change User Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"NewPassw0rd!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}/password", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}", "password"] }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employee",
+      "item": [
+        {
+          "name": "Nearby Shops",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/employee/shops/nearby?lat=13.7563&lng=100.5018&maxDistanceKm=8",
+              "host": ["{{baseUrl}}"],
+              "path": ["employee", "shops", "nearby"],
+              "query": [
+                { "key": "lat", "value": "13.7563" },
+                { "key": "lng", "value": "100.5018" },
+                { "key": "maxDistanceKm", "value": "8" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Shop Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/employee/shops/{{shopId}}/orders", "host": ["{{baseUrl}}"], "path": ["employee", "shops", "{{shopId}}", "orders"] }
+          }
+        },
+        {
+          "name": "Request Join Shop",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/employee/shops/{{shopId}}/join-request", "host": ["{{baseUrl}}"], "path": ["employee", "shops", "{{shopId}}", "join-request"] }
+          }
+        },
+        {
+          "name": "List Shop Join Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/employee/shops/{{shopId}}/join-requests", "host": ["{{baseUrl}}"], "path": ["employee", "shops", "{{shopId}}", "join-requests"] }
+          }
+        },
+        {
+          "name": "Resolve Join Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/employee/join-requests/{{employeeId}}", "host": ["{{baseUrl}}"], "path": ["employee", "join-requests", "{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Start Wash",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/employee/orders/{{orderId}}/start-wash", "host": ["{{baseUrl}}"], "path": ["employee", "orders", "{{orderId}}", "start-wash"] }
+          }
+        },
+        {
+          "name": "Finish Wash",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/employee/orders/{{orderId}}/finish-wash", "host": ["{{baseUrl}}"], "path": ["employee", "orders", "{{orderId}}", "finish-wash"] }
+          }
+        },
+        {
+          "name": "Finish Dry",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/employee/orders/{{orderId}}/finish-dry", "host": ["{{baseUrl}}"], "path": ["employee", "orders", "{{orderId}}", "finish-dry"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rider",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/profile", "host": ["{{baseUrl}}"], "path": ["rider", "profile"] }
+          }
+        },
+        {
+          "name": "Upsert Profile (form-data)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "fullName", "value": "Rider One", "type": "text" },
+                { "key": "licensePlate", "value": "1กข1234", "type": "text" },
+                { "key": "drivingLicense", "value": "12345678", "type": "text" },
+                { "key": "address", "value": "Bangkok", "type": "text" },
+                { "key": "phone", "value": "0891234567", "type": "text" },
+                { "key": "riderImage", "type": "file", "src": "" },
+                { "key": "vehicleImage", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/rider/profile", "host": ["{{baseUrl}}"], "path": ["rider", "profile"] }
+          }
+        },
+        {
+          "name": "List Riders (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/list", "host": ["{{baseUrl}}"], "path": ["rider", "list"] }
+          }
+        },
+        {
+          "name": "Available Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/available", "host": ["{{baseUrl}}"], "path": ["rider", "available"] }
+          }
+        },
+        {
+          "name": "My Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/my-tasks", "host": ["{{baseUrl}}"], "path": ["rider", "my-tasks"] }
+          }
+        },
+        {
+          "name": "Get Rider By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/{{riderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "{{riderId}}"] }
+          }
+        },
+        {
+          "name": "Accept Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/accept/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "accept", "{{orderId}}"] }
+          }
+        },
+        {
+          "name": "Update Rider Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"picked_up\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/rider/status/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "status", "{{orderId}}"] }
+          }
+        },
+        {
+          "name": "Handover To Shop",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": \"{{shopId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/rider/handover/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "handover", "{{orderId}}"] }
+          }
+        },
+        {
+          "name": "Select Shop For Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": \"{{shopId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/rider/select-shop/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "select-shop", "{{orderId}}"] }
+          }
+        },
+        {
+          "name": "Start Return Delivery",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/return-delivery/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "return-delivery", "{{orderId}}"] }
+          }
+        },
+        {
+          "name": "Complete Delivery",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/complete-delivery/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "complete-delivery", "{{orderId}}"] }
+          }
+        },
+        {
+          "name": "Delete My Rider Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/profile", "host": ["{{baseUrl}}"], "path": ["rider", "profile"] }
+          }
+        },
+        {
+          "name": "Delete Rider Profile By ID",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/profile/{{riderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "profile", "{{riderId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

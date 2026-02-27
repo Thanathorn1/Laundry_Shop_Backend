@@ -56,14 +56,69 @@ export class AuthService {
         from: fromEmail,
         to: email,
         subject: 'Reset your Laundry Shop password',
+        text: `Reset your Laundry Shop password\n\nWe received a request to reset your password.\nUse the link below within 15 minutes:\n${resetUrl}\n\nIf you did not request this, you can safely ignore this email.`,
         html: `
-                <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-                    <h2>Reset Password</h2>
-                    <p>You requested to reset your password.</p>
-                    <p>Click below to set a new password (valid for 15 minutes):</p>
-                    <p><a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;">Reset Password</a></p>
-                </div>
-            `,
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Reset your Laundry Shop password</title>
+            </head>
+            <body style="margin:0;padding:0;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f6fb;padding:24px 12px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
+                      <tr>
+                        <td style="background:linear-gradient(135deg,#1d4ed8,#2563eb);padding:24px 28px;color:#ffffff;">
+                          <div style="font-size:13px;letter-spacing:1.4px;text-transform:uppercase;opacity:0.9;font-weight:700;">Laundry Shop</div>
+                          <div style="margin-top:8px;font-size:24px;line-height:1.3;font-weight:800;">Reset your password</div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:28px;">
+                          <p style="margin:0 0 14px 0;font-size:15px;line-height:1.7;color:#334155;">
+                            We received a request to reset the password for your Laundry Shop account.
+                          </p>
+                          <p style="margin:0 0 22px 0;font-size:15px;line-height:1.7;color:#334155;">
+                            For your security, this link expires in <strong>15 minutes</strong>.
+                          </p>
+
+                          <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 24px 0;">
+                            <tr>
+                              <td>
+                                <a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700;">
+                                  Reset Password
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+
+                          <p style="margin:0 0 8px 0;font-size:13px;line-height:1.7;color:#64748b;">
+                            If the button doesn’t work, copy and paste this URL into your browser:
+                          </p>
+                          <p style="margin:0 0 22px 0;word-break:break-all;font-size:13px;line-height:1.6;color:#2563eb;">
+                            <a href="${resetUrl}" style="color:#2563eb;text-decoration:underline;">${resetUrl}</a>
+                          </p>
+
+                          <div style="margin-top:4px;padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+                            <p style="margin:0;font-size:12px;line-height:1.7;color:#64748b;">
+                              If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="max-width:620px;margin:14px auto 0 auto;padding:0 8px;font-size:12px;line-height:1.6;color:#94a3b8;text-align:center;">
+                      This is an automated message from Laundry Shop. Please do not reply to this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+          </html>
+        `,
       });
     } catch {
       throw new BadRequestException(
