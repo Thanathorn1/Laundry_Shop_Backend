@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -31,6 +32,21 @@ export class EmployeeController {
     }
 
     return String(user._id);
+  }
+
+  @Get('me')
+  async getMyProfile(@Req() req: any) {
+    const employeeId = await this.ensureEmployeeOrAdmin(req);
+    return this.usersService.getEmployeeProfile(employeeId);
+  }
+
+  @Put('update')
+  async updateProfile(
+    @Req() req: any,
+    @Body() body: { firstName?: string; lastName?: string; phoneNumber?: string },
+  ) {
+    const employeeId = await this.ensureEmployeeOrAdmin(req);
+    return this.usersService.updateEmployeeProfile(employeeId, body);
   }
 
   @Get('shops/nearby')

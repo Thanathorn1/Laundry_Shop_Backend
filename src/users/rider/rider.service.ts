@@ -68,7 +68,7 @@ export class RiderService {
     const profile = await this.userModel
       .findById(riderId)
       .select(
-        '_id email role fullName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
+        '_id email role firstName lastName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
       )
       .exec();
     if (!profile) {
@@ -84,7 +84,7 @@ export class RiderService {
     const profile = await this.userModel
       .findOne({ _id: new Types.ObjectId(riderId), role: 'rider' })
       .select(
-        '_id email role fullName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
+        '_id email role firstName lastName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
       )
       .exec();
     if (!profile) {
@@ -97,7 +97,7 @@ export class RiderService {
     const profiles = await this.userModel
       .find({ role: 'rider' })
       .select(
-        '_id email role fullName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
+        '_id email role firstName lastName licensePlate drivingLicense phone address riderImageUrl vehicleImageUrl isApproved',
       )
       .exec();
     return profiles.map((p) => this.formatProfileUrls(p));
@@ -132,7 +132,8 @@ export class RiderService {
       (user as any).vehicleImageUrl = vehicleImageUrl;
     }
 
-    if (dto.fullName !== undefined) (user as any).fullName = dto.fullName;
+    if (dto.firstName !== undefined) (user as any).firstName = dto.firstName;
+    if (dto.lastName !== undefined) (user as any).lastName = dto.lastName;
     if (dto.licensePlate !== undefined)
       (user as any).licensePlate = dto.licensePlate;
     if (dto.drivingLicense !== undefined)
@@ -270,14 +271,15 @@ export class RiderService {
     if (profile.riderImageUrl) this.deleteFile(profile.riderImageUrl);
     if (profile.vehicleImageUrl) this.deleteFile(profile.vehicleImageUrl);
 
-    profile.fullName = '';
-    profile.licensePlate = '';
-    profile.drivingLicense = '';
-    profile.phone = '';
-    profile.address = '';
-    profile.riderImageUrl = '';
-    profile.vehicleImageUrl = '';
-    profile.isApproved = false;
+    (profile as any).firstName = '';
+    (profile as any).lastName = '';
+    (profile as any).licensePlate = '';
+    (profile as any).drivingLicense = '';
+    (profile as any).phone = '';
+    (profile as any).address = '';
+    (profile as any).riderImageUrl = '';
+    (profile as any).vehicleImageUrl = '';
+    (profile as any).isApproved = false;
     await profile.save();
 
     return { message: 'ลบโปรไฟล์และไฟล์ภาพเรียบร้อยแล้ว' };

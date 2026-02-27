@@ -406,6 +406,29 @@ export class UsersService {
     return this.userModel.findById(userId).exec();
   }
 
+  async getEmployeeProfile(employeeId: string) {
+    const user = await this.userModel
+      .findById(employeeId)
+      .select('_id email role firstName lastName phoneNumber assignedShopId assignedShopIds')
+      .exec();
+    if (!user) throw new NotFoundException('Employee not found');
+    return user;
+  }
+
+  async updateEmployeeProfile(
+    employeeId: string,
+    data: { firstName?: string; lastName?: string; phoneNumber?: string },
+  ) {
+    const updateData: Record<string, any> = {};
+    if (data.firstName !== undefined) updateData.firstName = data.firstName;
+    if (data.lastName !== undefined) updateData.lastName = data.lastName;
+    if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
+
+    await this.userModel.updateOne({ _id: employeeId }, { $set: updateData }).exec();
+
+    return this.getEmployeeProfile(employeeId);
+  }
+
   async listUsersByRole(role: UserRole) {
     const users = await this.userModel
       .find({ role })
@@ -908,6 +931,85 @@ export class UsersService {
       .findByIdAndUpdate(
         userId,
         { $set: { savedAddresses: mergedAddresses } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async updateUserSavedAddress(
+    userId: string,
+    addressId: string,
+    data: {
+      label?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      isDefault?: boolean;
+    },
+  ) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('savedAddresses')
+      .lean()
+      .exec();
+    let addresses = ((user as any)?.savedAddresses || []) as any[];
+
+    const index = addresses.findIndex(
+      (item: any) => String(item._id) === addressId,
+    );
+    if (index === -1) {
+      throw new NotFoundException('Address not found');
+    }
+
+    const existing = addresses[index];
+    const updated = {
+      ...existing,
+      label: data.label !== undefined ? data.label.trim() : existing.label,
+      address: data.address !== undefined ? data.address : existing.address,
+      coordinates:
+        data.latitude !== undefined && data.longitude !== undefined
+          ? [data.longitude, data.latitude]
+          : existing.coordinates,
+      isDefault:
+        data.isDefault !== undefined ? data.isDefault : existing.isDefault,
+    };
+
+    if (updated.isDefault) {
+      addresses = addresses.map((item, i) =>
+        i === index ? item : { ...item, isDefault: false },
+      );
+    }
+
+    addresses[index] = updated;
+
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { savedAddresses: addresses } },
+        { new: true },
+      )
+      .exec();
+  }
+
+  async deleteUserSavedAddress(userId: string, addressId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('savedAddresses')
+      .lean()
+      .exec();
+    const addresses = ((user as any)?.savedAddresses || []) as any[];
+
+    const filtered = addresses.filter(
+      (item: any) => String(item._id) !== addressId,
+    );
+    if (filtered.length === addresses.length) {
+      throw new NotFoundException('Address not found');
+    }
+
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { savedAddresses: filtered } },
         { new: true },
       )
       .exec();

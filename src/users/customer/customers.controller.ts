@@ -90,6 +90,39 @@ export class CustomersController {
   }
 
   @UseGuards(AccessTokenGuard)
+  @Put('addresses/:addressId')
+  async updateSavedAddress(
+    @Request() req,
+    @Param('addressId') addressId: string,
+    @Body()
+    body: {
+      label?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      isDefault?: boolean;
+    },
+  ) {
+    return this.usersService.updateUserSavedAddress(
+      this.getAuthUserId(req),
+      addressId,
+      body,
+    );
+  }
+
+  @UseGuards(AccessTokenGuard)
+  @Delete('addresses/:addressId')
+  async deleteSavedAddress(
+    @Request() req,
+    @Param('addressId') addressId: string,
+  ) {
+    return this.usersService.deleteUserSavedAddress(
+      this.getAuthUserId(req),
+      addressId,
+    );
+  }
+
+  @UseGuards(AccessTokenGuard)
   @Post('orders')
   async createOrder(@Request() req, @Body() dto: CreateOrderDto) {
     return this.usersService.createOrder(this.getAuthUserId(req), dto);

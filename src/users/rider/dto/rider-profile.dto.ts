@@ -9,7 +9,11 @@ import {
 export class RiderProfileDto {
   @IsString()
   @IsOptional()
-  fullName?: string;
+  firstName?: string;
+
+  @IsString()
+  @IsOptional()
+  lastName?: string;
 
   @IsString()
   @IsOptional()
