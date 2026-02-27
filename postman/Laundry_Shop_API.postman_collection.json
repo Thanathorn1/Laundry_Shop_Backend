@@ -567,7 +567,22 @@
           }
         },
         {
-          "name": "Set User Ban",
+          "name": "Ban User Permanent",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"permanent\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}/ban", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}", "ban"] }
+          }
+        },
+        {
+          "name": "Ban User For Days",
           "request": {
             "method": "PATCH",
             "header": [
@@ -577,6 +592,21 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mode\": \"days\",\n  \"days\": 7\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}/ban", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}", "ban"] }
+          }
+        },
+        {
+          "name": "Unban User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"unban\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}/ban", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}", "ban"] }
           }
@@ -604,6 +634,36 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": { "raw": "{{baseUrl}}/customers/admin/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "users", "{{userId}}"] }
+          }
+        },
+        {
+          "name": "List All Shops",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/map/shops", "host": ["{{baseUrl}}"], "path": ["map", "shops"] }
+          }
+        },
+        {
+          "name": "Approve Shop Pin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/map/shops/{{shopId}}/approve", "host": ["{{baseUrl}}"], "path": ["map", "shops", "{{shopId}}", "approve"] }
+          }
+        },
+        {
+          "name": "Delete Shop",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/map/shops/{{shopId}}", "host": ["{{baseUrl}}"], "path": ["map", "shops", "{{shopId}}"] }
           }
         }
       ]
@@ -732,6 +792,21 @@
               { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "url": { "raw": "{{baseUrl}}/employee/orders/{{orderId}}/finish-dry", "host": ["{{baseUrl}}"], "path": ["employee", "orders", "{{orderId}}", "finish-dry"] }
+          }
+        },
+        {
+          "name": "Request Shop Pin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"My Laundry Shop\",\n  \"label\": \"My Laundry Shop\",\n  \"phoneNumber\": \"0891234567\",\n  \"totalWashingMachines\": 10,\n  \"machineSizeConfig\": {\n    \"s\": 4,\n    \"m\": 3,\n    \"l\": 3\n  },\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/map/shops", "host": ["{{baseUrl}}"], "path": ["map", "shops"] }
           }
         }
       ]
