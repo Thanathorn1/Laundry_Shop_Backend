@@ -409,7 +409,9 @@ export class UsersService {
   async getEmployeeProfile(employeeId: string) {
     const user = await this.userModel
       .findById(employeeId)
-      .select('_id email role firstName lastName phoneNumber assignedShopId assignedShopIds')
+      .select(
+        '_id email role firstName lastName phoneNumber profileImage assignedShopId assignedShopIds',
+      )
       .exec();
     if (!user) throw new NotFoundException('Employee not found');
     return user;
@@ -417,12 +419,18 @@ export class UsersService {
 
   async updateEmployeeProfile(
     employeeId: string,
-    data: { firstName?: string; lastName?: string; phoneNumber?: string },
+    data: {
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      profileImage?: string;
+    },
   ) {
     const updateData: Record<string, any> = {};
     if (data.firstName !== undefined) updateData.firstName = data.firstName;
     if (data.lastName !== undefined) updateData.lastName = data.lastName;
     if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
+    if (data.profileImage !== undefined) updateData.profileImage = data.profileImage;
 
     await this.userModel.updateOne({ _id: employeeId }, { $set: updateData }).exec();
 

@@ -43,7 +43,13 @@ export class EmployeeController {
   @Put('update')
   async updateProfile(
     @Req() req: any,
-    @Body() body: { firstName?: string; lastName?: string; phoneNumber?: string },
+    @Body()
+    body: {
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      profileImage?: string;
+    },
   ) {
     const employeeId = await this.ensureEmployeeOrAdmin(req);
     return this.usersService.updateEmployeeProfile(employeeId, body);
