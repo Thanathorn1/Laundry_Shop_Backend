@@ -10,6 +10,8 @@ import {
   Request,
   NotFoundException,
   ForbiddenException,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from '../users.service';
 import {
@@ -19,10 +21,57 @@ import {
   UpdateOrderDto,
 } from './dto/create-customer.dto';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly usersService: UsersService) {}
+
+  private toNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private toImageList(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === 'string');
+    }
+    if (typeof value !== 'string' || !value.trim()) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string');
+      }
+    } catch {
+      // keep as single string fallback
+    }
+
+    return [value];
+  }
+
+  private normalizeOrderPayload(body: any, files?: Array<{ filename: string }>) {
+    const uploadedImages =
+      files?.map((file) => `/uploads/customerorder/${file.filename}`) || [];
+    const bodyImages = this.toImageList(body?.images);
+
+    return {
+      ...body,
+      pickupLatitude: this.toNumber(body?.pickupLatitude),
+      pickupLongitude: this.toNumber(body?.pickupLongitude),
+      deliveryLatitude: this.toNumber(body?.deliveryLatitude),
+      deliveryLongitude: this.toNumber(body?.deliveryLongitude),
+      serviceTimeMinutes: this.toNumber(body?.serviceTimeMinutes),
+      images: [...bodyImages, ...uploadedImages],
+    };
+  }
 
   private getAuthUserId(req: any): string {
     return req?.user?.userId || req?.user?.sub || req?.user?.id;
@@ -124,8 +173,35 @@ export class CustomersController {
 
   @UseGuards(AccessTokenGuard)
   @Post('orders')
-  async createOrder(@Request() req, @Body() dto: CreateOrderDto) {
-    return this.usersService.createOrder(this.getAuthUserId(req), dto);
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const uploadDir = path.join(process.cwd(), 'uploads', 'customerorder');
+          try {
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true });
+            }
+          } catch {
+            // ignore; multer will handle write errors
+          }
+          cb(null, uploadDir);
+        },
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          const fileExt = extname(file.originalname || '').toLowerCase();
+          cb(null, `order-${uniqueSuffix}${fileExt || '.jpg'}`);
+        },
+      }),
+    }),
+  )
+  async createOrder(
+    @Request() req,
+    @Body() body: CreateOrderDto,
+    @UploadedFiles() files: Array<{ filename: string }>,
+  ) {
+    const normalized = this.normalizeOrderPayload(body, files);
+    return this.usersService.createOrder(this.getAuthUserId(req), normalized);
   }
 
   @UseGuards(AccessTokenGuard)
@@ -136,10 +212,33 @@ export class CustomersController {
 
   @UseGuards(AccessTokenGuard)
   @Put('orders/:orderId')
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const uploadDir = path.join(process.cwd(), 'uploads', 'customerorder');
+          try {
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true });
+            }
+          } catch {
+            // ignore; multer will handle write errors
+          }
+          cb(null, uploadDir);
+        },
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+          const fileExt = extname(file.originalname || '').toLowerCase();
+          cb(null, `order-${uniqueSuffix}${fileExt || '.jpg'}`);
+        },
+      }),
+    }),
+  )
   async updateOrder(
     @Param('orderId') orderId: string,
     @Request() req,
     @Body() dto: UpdateOrderDto,
+    @UploadedFiles() files: Array<{ filename: string }>,
   ) {
     const userId = this.getAuthUserId(req);
     const order = await this.usersService.findOrderById(orderId);
@@ -148,7 +247,8 @@ export class CustomersController {
       throw new ForbiddenException('Not your order');
     if (order.status !== 'pending')
       throw new ForbiddenException('Only pending orders can be edited');
-    return this.usersService.updateOrder(orderId, dto);
+    const normalized = this.normalizeOrderPayload(dto, files);
+    return this.usersService.updateOrder(orderId, normalized);
   }
 
   @UseGuards(AccessTokenGuard)
