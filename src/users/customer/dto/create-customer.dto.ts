@@ -7,6 +7,7 @@ import {
   Max,
   IsArray,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateCustomerDto {
   @IsOptional()
@@ -107,9 +108,11 @@ export class CreateOrderDto {
   images?: string[];
 
   @IsNumber()
+  @Type(() => Number)
   pickupLatitude: number;
 
   @IsNumber()
+  @Type(() => Number)
   pickupLongitude: number;
 
   @IsOptional()
@@ -118,10 +121,12 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   deliveryLatitude?: number;
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   deliveryLongitude?: number;
 
   @IsOptional()
@@ -142,6 +147,7 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   serviceTimeMinutes?: number;
 
   @IsOptional()
@@ -179,6 +185,7 @@ export class UpdateOrderDto {
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   serviceTimeMinutes?: number;
 
   @IsOptional()
@@ -187,10 +194,12 @@ export class UpdateOrderDto {
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   pickupLatitude?: number;
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   pickupLongitude?: number;
 
   @IsOptional()
