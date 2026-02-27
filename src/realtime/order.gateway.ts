@@ -60,11 +60,12 @@ export class OrderGateway {
 
   /** Emit to all connected riders (for new/available orders) */
   emitToRiders(event: string, data: any) {
+    if (!this.server) return;
     this.server.to(this.RIDERS_ROOM).emit(event, data);
   }
 
   emitOrderUpdate(order: any) {
-    if (!order) return;
+    if (!order || !this.server) return;
 
     const customerId = order.customerId ? String(order.customerId) : '';
     const riderId = order.riderId ? String(order.riderId) : '';

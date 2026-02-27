@@ -55,7 +55,12 @@ export class UsersService {
   private persistOrderImages(images?: string[]): string[] {
     if (!Array.isArray(images) || images.length === 0) return [];
 
-    const uploadDir = this.ensureCustomerOrderUploadDir();
+    let uploadDir: string | null = null;
+    try {
+      uploadDir = this.ensureCustomerOrderUploadDir();
+    } catch {
+      uploadDir = null;
+    }
 
     return images.map((imageValue) => {
       if (typeof imageValue !== 'string') return imageValue as any;
@@ -67,13 +72,21 @@ export class UsersService {
         return imageValue;
       }
 
+      if (!uploadDir) {
+        return imageValue;
+      }
+
       const mimeType = dataUrlMatch[1];
       const base64Payload = dataUrlMatch[2];
       const ext = this.dataUrlToFileExt(mimeType);
       const fileName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
       const absolutePath = path.join(uploadDir, fileName);
 
-      fs.writeFileSync(absolutePath, Buffer.from(base64Payload, 'base64'));
+      try {
+        fs.writeFileSync(absolutePath, Buffer.from(base64Payload, 'base64'));
+      } catch {
+        return imageValue;
+      }
 
       return `/uploads/customerorder/${fileName}`;
     });
@@ -1077,8 +1090,12 @@ export class UsersService {
       totalPrice,
     });
 
-    // Notify all riders about the new pending order
-    this.orderGateway.emitOrderUpdate(created);
+    // Notify all riders about the new pending order (best effort)
+    try {
+      this.orderGateway.emitOrderUpdate(created);
+    } catch {
+      // ignore realtime transport errors to avoid breaking API response
+    }
 
     return created;
   }
