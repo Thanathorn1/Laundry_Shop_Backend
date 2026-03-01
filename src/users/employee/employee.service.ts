@@ -66,4 +66,8 @@ export class EmployeeService {
   employeeFinishDry(orderId: string, userId: string) {
     return this.usersService.employeeFinishDry(orderId, userId);
   }
+
+  getShopInfo(shopId: string) {
+    return this.usersService.getShopWithMachineAvailability(shopId);
+  }
 }

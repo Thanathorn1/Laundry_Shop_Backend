@@ -85,6 +85,12 @@ export class EmployeeController {
     );
   }
 
+  @Get('shops/:shopId/info')
+  async getShopInfo(@Req() req: any, @Param('shopId') shopId: string) {
+    await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.getShopInfo(shopId);
+  }
+
   @Get('shops/:shopId/orders')
   async getShopOrders(@Req() req: any, @Param('shopId') shopId: string) {
     await this.ensureRole(req, ['employee', 'admin']);

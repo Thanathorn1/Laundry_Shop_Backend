@@ -256,6 +256,48 @@ export class UsersService {
                     $cond: [{ $eq: ['$status', 'drying'] }, 1, 0],
                   },
                 },
+                machineInUseS: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $and: [
+                          { $in: ['$status', ['at_shop', 'washing']] },
+                          { $in: ['$weightCategory', ['s', '0-4']] },
+                        ],
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+                machineInUseM: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $and: [
+                          { $in: ['$status', ['at_shop', 'washing']] },
+                          { $in: ['$weightCategory', ['m', '6-10']] },
+                        ],
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+                machineInUseL: {
+                  $sum: {
+                    $cond: [
+                      {
+                        $and: [
+                          { $in: ['$status', ['at_shop', 'washing']] },
+                          { $in: ['$weightCategory', ['l', '10-20']] },
+                        ],
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                },
               },
             },
           ])
@@ -263,13 +305,16 @@ export class UsersService {
 
     const usageByShopId = new Map<
       string,
-      { machineInUse: number; dryMachineInUse: number }
+      { machineInUse: number; dryMachineInUse: number; machineInUseS: number; machineInUseM: number; machineInUseL: number }
     >(
       usage.map((item: any) => [
         String(item._id),
         {
           machineInUse: Number(item.machineInUse) || 0,
           dryMachineInUse: Number(item.dryMachineInUse) || 0,
+          machineInUseS: Number(item.machineInUseS) || 0,
+          machineInUseM: Number(item.machineInUseM) || 0,
+          machineInUseL: Number(item.machineInUseL) || 0,
         },
       ]),
     );
@@ -286,6 +331,9 @@ export class UsersService {
       const usage = usageByShopId.get(String(shop._id)) || {
         machineInUse: 0,
         dryMachineInUse: 0,
+        machineInUseS: 0,
+        machineInUseM: 0,
+        machineInUseL: 0,
       };
       const machineInUse = usage.machineInUse;
       const machineAvailable = Math.max(0, totalWashingMachines - machineInUse);
@@ -294,6 +342,13 @@ export class UsersService {
         0,
         totalDryingMachines - dryMachineInUse,
       );
+      const machineSizeConfig = (shop?.machineSizeConfig as { s?: number; m?: number; l?: number } | undefined) || {};
+      const totalS = Math.max(0, Number(machineSizeConfig.s) || 0);
+      const totalM = Math.max(0, Number(machineSizeConfig.m) || 0);
+      const totalL = Math.max(0, Number(machineSizeConfig.l) || 0);
+      const machineInUseS = usage.machineInUseS;
+      const machineInUseM = usage.machineInUseM;
+      const machineInUseL = usage.machineInUseL;
 
       return {
         ...shop,
@@ -303,6 +358,12 @@ export class UsersService {
         machineAvailable,
         dryMachineInUse,
         dryMachineAvailable,
+        machineInUseS,
+        machineInUseM,
+        machineInUseL,
+        machineAvailableS: Math.max(0, totalS - machineInUseS),
+        machineAvailableM: Math.max(0, totalM - machineInUseM),
+        machineAvailableL: Math.max(0, totalL - machineInUseL),
       };
     });
 
@@ -1639,6 +1700,102 @@ export class UsersService {
       },
       ...nearbyShops,
     ];
+  }
+
+  async getShopWithMachineAvailability(shopId: string) {
+    if (!Types.ObjectId.isValid(shopId)) {
+      throw new BadRequestException('Invalid shopId');
+    }
+    const shop = (await this.shopModel
+      .findById(new Types.ObjectId(shopId))
+      .lean()
+      .exec()) as any;
+    if (!shop) {
+      throw new NotFoundException('Shop not found');
+    }
+
+    const oid = new Types.ObjectId(shopId);
+    const [usageRow] = await this.orderModel.aggregate([
+      {
+        $match: {
+          shopId: oid as any,
+          status: { $in: ['at_shop', 'washing', 'drying'] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          machineInUse: {
+            $sum: { $cond: [{ $in: ['$status', ['at_shop', 'washing']] }, 1, 0] },
+          },
+          dryMachineInUse: {
+            $sum: { $cond: [{ $eq: ['$status', 'drying'] }, 1, 0] },
+          },
+          machineInUseS: {
+            $sum: {
+              $cond: [{
+                $and: [
+                  { $in: ['$status', ['at_shop', 'washing']] },
+                  { $in: ['$weightCategory', ['s', '0-4']] },
+                ],
+              }, 1, 0],
+            },
+          },
+          machineInUseM: {
+            $sum: {
+              $cond: [{
+                $and: [
+                  { $in: ['$status', ['at_shop', 'washing']] },
+                  { $in: ['$weightCategory', ['m', '6-10']] },
+                ],
+              }, 1, 0],
+            },
+          },
+          machineInUseL: {
+            $sum: {
+              $cond: [{
+                $and: [
+                  { $in: ['$status', ['at_shop', 'washing']] },
+                  { $in: ['$weightCategory', ['l', '10-20']] },
+                ],
+              }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const totalWashingMachines = Math.max(1, Number(shop.totalWashingMachines) || 10);
+    const totalDryingMachines = Math.max(1, Number(shop.totalDryingMachines) || totalWashingMachines);
+    const machineSizeConfig = (shop.machineSizeConfig as { s?: number; m?: number; l?: number } | undefined) || {};
+    const totalS = Math.max(0, Number(machineSizeConfig.s) || 0);
+    const totalM = Math.max(0, Number(machineSizeConfig.m) || 0);
+    const totalL = Math.max(0, Number(machineSizeConfig.l) || 0);
+
+    const machineInUse = Number(usageRow?.machineInUse) || 0;
+    const dryMachineInUse = Number(usageRow?.dryMachineInUse) || 0;
+    const machineInUseS = Number(usageRow?.machineInUseS) || 0;
+    const machineInUseM = Number(usageRow?.machineInUseM) || 0;
+    const machineInUseL = Number(usageRow?.machineInUseL) || 0;
+
+    return {
+      ...shop,
+      totalWashingMachines,
+      totalDryingMachines,
+      machineInUse,
+      machineAvailable: Math.max(0, totalWashingMachines - machineInUse),
+      dryMachineInUse,
+      dryMachineAvailable: Math.max(0, totalDryingMachines - dryMachineInUse),
+      machineInUseS,
+      machineInUseM,
+      machineInUseL,
+      machineAvailableS: Math.max(0, totalS - machineInUseS),
+      machineAvailableM: Math.max(0, totalM - machineInUseM),
+      machineAvailableL: Math.max(0, totalL - machineInUseL),
+      machineTotalS: totalS,
+      machineTotalM: totalM,
+      machineTotalL: totalL,
+    };
   }
 
   async listEmployeeShopOrders(shopId: string) {
