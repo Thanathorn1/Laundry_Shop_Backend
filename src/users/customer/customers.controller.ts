@@ -13,7 +13,7 @@ import {
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { UsersService } from '../users.service';
+import { CustomersService } from './customers.service';
 import {
   CreateCustomerDto,
   CreateReviewDto,
@@ -29,7 +29,16 @@ import * as path from 'path';
 
 @Controller('customers')
 export class CustomersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly customersService: CustomersService) {}
+
+  private readonly allSignedInRoles: Array<
+    'user' | 'rider' | 'admin' | 'employee'
+  > = ['user', 'rider', 'admin', 'employee'];
+
+  private readonly customerActionRoles: Array<'user' | 'admin'> = [
+    'user',
+    'admin',
+  ];
 
   private toNumber(value: unknown): number | undefined {
     if (value === undefined || value === null || value === '') return undefined;
@@ -77,11 +86,27 @@ export class CustomersController {
     return req?.user?.userId || req?.user?.sub || req?.user?.id;
   }
 
+  private async ensureRole(
+    req: any,
+    allowedRoles: Array<'user' | 'rider' | 'admin' | 'employee'>,
+  ) {
+    const userId = this.getAuthUserId(req);
+    if (!userId) throw new ForbiddenException('Unauthorized');
+
+    const user = await this.customersService.findUserById(userId);
+    if (!user || !allowedRoles.includes(user.role as any)) {
+      throw new ForbiddenException('ไม่อนุญาตให้เข้าถึงข้อมูลส่วนนี้');
+    }
+
+    return userId;
+  }
+
   @UseGuards(AccessTokenGuard)
   @Post('register')
   async registerCustomer(@Request() req, @Body() dto: CreateCustomerDto) {
-    const user = await this.usersService.upsertUserProfile(
-      this.getAuthUserId(req),
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    const user = await this.customersService.upsertUserProfile(
+      userId,
       {
         firstName: dto.firstName,
         lastName: dto.lastName,
@@ -98,7 +123,8 @@ export class CustomersController {
   @UseGuards(AccessTokenGuard)
   @Get('me')
   async getMyProfile(@Request() req) {
-    const user = await this.usersService.findUserById(this.getAuthUserId(req));
+    const userId = await this.ensureRole(req, this.allSignedInRoles);
+    const user = await this.customersService.findUserById(userId);
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
@@ -106,7 +132,8 @@ export class CustomersController {
   @UseGuards(AccessTokenGuard)
   @Put('update')
   async updateProfile(@Request() req, @Body() dto: CreateCustomerDto) {
-    return this.usersService.upsertUserProfile(this.getAuthUserId(req), dto);
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    return this.customersService.upsertUserProfile(userId, dto);
   }
 
   @UseGuards(AccessTokenGuard)
@@ -125,8 +152,9 @@ export class CustomersController {
       pickupAt?: string | null;
     },
   ) {
-    return this.usersService.addUserSavedAddress(
-      this.getAuthUserId(req),
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    return this.customersService.addUserSavedAddress(
+      userId,
       body.label,
       body.address,
       body.latitude,
@@ -152,8 +180,9 @@ export class CustomersController {
       isDefault?: boolean;
     },
   ) {
-    return this.usersService.updateUserSavedAddress(
-      this.getAuthUserId(req),
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    return this.customersService.updateUserSavedAddress(
+      userId,
       addressId,
       body,
     );
@@ -165,8 +194,9 @@ export class CustomersController {
     @Request() req,
     @Param('addressId') addressId: string,
   ) {
-    return this.usersService.deleteUserSavedAddress(
-      this.getAuthUserId(req),
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    return this.customersService.deleteUserSavedAddress(
+      userId,
       addressId,
     );
   }
@@ -200,14 +230,16 @@ export class CustomersController {
     @Body() body: CreateOrderDto,
     @UploadedFiles() files: Array<{ filename: string }>,
   ) {
+    const userId = await this.ensureRole(req, this.customerActionRoles);
     const normalized = this.normalizeOrderPayload(body, files);
-    return this.usersService.createOrder(this.getAuthUserId(req), normalized);
+    return this.customersService.createOrder(userId, normalized);
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('orders')
   async getMyOrders(@Request() req) {
-    return this.usersService.getCustomerOrders(this.getAuthUserId(req));
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    return this.customersService.getCustomerOrders(userId);
   }
 
   @UseGuards(AccessTokenGuard)
@@ -240,55 +272,59 @@ export class CustomersController {
     @Body() dto: UpdateOrderDto,
     @UploadedFiles() files: Array<{ filename: string }>,
   ) {
-    const userId = this.getAuthUserId(req);
-    const order = await this.usersService.findOrderById(orderId);
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    const order = await this.customersService.findOrderById(orderId);
     if (!order) throw new NotFoundException('Order not found');
     if (order.customerId.toString() !== userId)
       throw new ForbiddenException('Not your order');
     if (order.status !== 'pending')
       throw new ForbiddenException('Only pending orders can be edited');
     const normalized = this.normalizeOrderPayload(dto, files);
-    return this.usersService.updateOrder(orderId, normalized);
+    return this.customersService.updateOrder(orderId, normalized);
   }
 
   @UseGuards(AccessTokenGuard)
   @Delete('orders/:orderId')
   async deleteOrder(@Param('orderId') orderId: string, @Request() req) {
-    const userId = this.getAuthUserId(req);
-    const order = await this.usersService.findOrderById(orderId);
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    const order = await this.customersService.findOrderById(orderId);
     if (!order) throw new NotFoundException('Order not found');
     if (order.customerId.toString() !== userId)
       throw new ForbiddenException('Not your order');
     if (order.status !== 'pending')
       throw new ForbiddenException('Only pending orders can be deleted');
-    return this.usersService.deleteOrder(orderId);
+    return this.customersService.deleteOrder(orderId);
   }
 
   @UseGuards(AccessTokenGuard)
   @Put('orders/:orderId/status')
   async updateOrderStatus(
+    @Request() req,
     @Param('orderId') orderId: string,
     @Body() body: { status: string },
   ) {
-    return this.usersService.updateOrderStatus(orderId, body.status);
+    await this.ensureRole(req, this.customerActionRoles);
+    return this.customersService.updateOrderStatus(orderId, body.status);
   }
 
   @UseGuards(AccessTokenGuard)
   @Post('reviews')
   async createReview(@Request() req, @Body() dto: CreateReviewDto) {
-    const customer = await this.usersService.findCustomerByUserId(
-      this.getAuthUserId(req),
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    const customer = await this.customersService.findCustomerByUserId(
+      userId,
     );
     if (!customer) {
       throw new NotFoundException('Customer profile not found');
     }
-    return this.usersService.createReview(customer._id.toString(), dto);
+    return this.customersService.createReview(customer._id.toString(), dto);
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('saved-addresses')
   async getSavedAddresses(@Request() req) {
-    const user = await this.usersService.findUserById(this.getAuthUserId(req));
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    const user = await this.customersService.findUserById(userId);
     if (!user) throw new NotFoundException('User not found');
     return user.savedAddresses || [];
   }
@@ -296,20 +332,21 @@ export class CustomersController {
   @UseGuards(AccessTokenGuard)
   @Get('reviews')
   async getMyReviews(@Request() req) {
-    const customer = await this.usersService.findCustomerByUserId(
-      this.getAuthUserId(req),
+    const userId = await this.ensureRole(req, this.customerActionRoles);
+    const customer = await this.customersService.findCustomerByUserId(
+      userId,
     );
     if (!customer) {
       throw new NotFoundException('Customer profile not found');
     }
-    return this.usersService.getCustomerReviews(customer._id.toString());
+    return this.customersService.getCustomerReviews(customer._id.toString());
   }
 
   @Get('nearby')
   async getNearbyCustomers(
     @Body() body: { latitude: number; longitude: number; maxDistance?: number },
   ) {
-    return this.usersService.findNearbyCustomers(
+    return this.customersService.findNearbyCustomers(
       body.longitude,
       body.latitude,
       body.maxDistance,

@@ -3,7 +3,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { MongooseModule } from '@nestjs/mongoose';
-import { UsersModule } from './users/users.module';
+import { UsersCoreModule } from './users/users-core.module';
+import { AdminModule } from './users/admin/admin.module';
+import { CustomersModule } from './users/customer/customers.module';
+import { EmployeeModule } from './users/employee/employee.module';
 import { AuthModule } from './auth/auth.module';
 import { MapModule } from './map/map.module';
 import { RiderModule } from './users/rider/rider.module';
@@ -43,7 +46,10 @@ import { APP_GUARD } from '@nestjs/core';
         retryReads: true,
       }),
     }),
-    UsersModule,
+    UsersCoreModule,
+    AdminModule,
+    CustomersModule,
+    EmployeeModule,
     AuthModule,
     MapModule,
     RiderModule,

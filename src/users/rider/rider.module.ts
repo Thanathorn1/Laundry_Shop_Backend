@@ -4,12 +4,12 @@ import { RiderService } from './rider.service';
 import { RiderController } from './rider.controller';
 import { Order, OrderSchema } from '../customer/schemas/order.schema';
 import { User, UserSchema } from '../schemas/user.schema';
-import { UsersModule } from '../users.module';
+import { UsersCoreModule } from '../users-core.module';
 import { RealtimeModule } from '../../realtime/realtime.module';
 
 @Module({
   imports: [
-    UsersModule,
+    UsersCoreModule,
     RealtimeModule,
     MongooseModule.forFeature([
       { name: Order.name, schema: OrderSchema },

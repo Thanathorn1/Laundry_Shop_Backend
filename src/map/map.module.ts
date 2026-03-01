@@ -8,12 +8,12 @@ import {
   OrderLocationSchema,
 } from './schemas/order-location.schema';
 import { Shop, ShopSchema } from './schemas/shop.schema';
-import { UsersModule } from '../users/users.module';
+import { UsersCoreModule } from '../users/users-core.module';
 import { User, UserSchema } from '../users/admin/schemas/user.schema';
 
 @Module({
   imports: [
-    UsersModule,
+    UsersCoreModule,
     MongooseModule.forFeature([
       { name: Address.name, schema: AddressSchema },
       { name: OrderLocation.name, schema: OrderLocationSchema },

@@ -12,7 +12,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
-import { UsersService } from '../users.service';
 import {
   AssignEmployeeShopDto,
   ChangeUserPasswordDto,
@@ -21,10 +20,11 @@ import {
   ResolveEmployeeJoinRequestDto,
   SetUserBanDto,
 } from './dto/admin-users.dto';
+import { AdminService } from './admin.service';
 
 @Controller('customers/admin')
 export class AdminUsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly adminService: AdminService) {}
 
   private async ensureAdmin(req: any) {
     const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
@@ -32,7 +32,7 @@ export class AdminUsersController {
       throw new ForbiddenException('Admin only');
     }
 
-    const user = await this.usersService.findUserById(userId);
+    const user = await this.adminService.findUserById(userId);
     if (!user || user.role !== 'admin') {
       throw new ForbiddenException('Admin only');
     }
@@ -42,21 +42,21 @@ export class AdminUsersController {
   @Get('customers')
   async listCustomersForAdmin(@Request() req: any) {
     await this.ensureAdmin(req);
-    return this.usersService.listUsersByRole('user');
+    return this.adminService.listUsersByRole('user');
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('riders')
   async listRidersForAdmin(@Request() req: any) {
     await this.ensureAdmin(req);
-    return this.usersService.listUsersByRole('rider');
+    return this.adminService.listUsersByRole('rider');
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('admins')
   async listAdminsForAdmin(@Request() req: any) {
     await this.ensureAdmin(req);
-    return this.usersService.listUsersByRole('admin');
+    return this.adminService.listUsersByRole('admin');
   }
 
   @UseGuards(AccessTokenGuard)
@@ -67,14 +67,14 @@ export class AdminUsersController {
     @Body() body: ChangeUserRoleDto,
   ) {
     await this.ensureAdmin(req);
-    return this.usersService.adminChangeUserRole(userId, body.role);
+    return this.adminService.adminChangeUserRole(userId, body.role);
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('employees')
   async listEmployeesForAdmin(@Request() req: any) {
     await this.ensureAdmin(req);
-    return this.usersService.listUsersByRole('employee');
+    return this.adminService.listUsersByRole('employee');
   }
 
   @UseGuards(AccessTokenGuard)
@@ -84,21 +84,21 @@ export class AdminUsersController {
     @Body() body: CreateEmployeeDto,
   ) {
     await this.ensureAdmin(req);
-    return this.usersService.adminCreateEmployee(body.email, body.password);
+    return this.adminService.adminCreateEmployee(body.email, body.password);
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('employees/by-shop')
   async listEmployeesByShop(@Request() req: any) {
     await this.ensureAdmin(req);
-    return this.usersService.listEmployeesByShop();
+    return this.adminService.listEmployeesByShop();
   }
 
   @UseGuards(AccessTokenGuard)
   @Get('employees/join-requests')
   async listEmployeeJoinRequests(@Request() req: any) {
     await this.ensureAdmin(req);
-    return this.usersService.listEmployeeJoinRequestsForAdmin();
+    return this.adminService.listEmployeeJoinRequestsForAdmin();
   }
 
   @UseGuards(AccessTokenGuard)
@@ -111,7 +111,7 @@ export class AdminUsersController {
     await this.ensureAdmin(req);
     const requesterId = req?.user?.userId || req?.user?.sub || req?.user?.id;
     const action = body?.action;
-    return this.usersService.resolveEmployeeJoinRequest(
+    return this.adminService.resolveEmployeeJoinRequest(
       requesterId,
       employeeId,
       action,
@@ -126,7 +126,7 @@ export class AdminUsersController {
     @Body() body: AssignEmployeeShopDto,
   ) {
     await this.ensureAdmin(req);
-    return this.usersService.adminAssignEmployeeToShop(
+    return this.adminService.adminAssignEmployeeToShop(
       employeeId,
       body?.shopId ?? null,
     );
@@ -142,7 +142,7 @@ export class AdminUsersController {
     await this.ensureAdmin(req);
     const fallbackMode = body?.isBanned === true ? 'permanent' : 'unban';
     const mode = body?.mode ?? fallbackMode;
-    return this.usersService.adminSetUserBan(userId, {
+    return this.adminService.adminSetUserBan(userId, {
       mode,
       days: body?.days,
     });
@@ -156,7 +156,7 @@ export class AdminUsersController {
     @Body() body: ChangeUserPasswordDto,
   ) {
     await this.ensureAdmin(req);
-    return this.usersService.adminChangeUserPassword(userId, body.password);
+    return this.adminService.adminChangeUserPassword(userId, body.password);
   }
 
   @UseGuards(AccessTokenGuard)
@@ -167,6 +167,6 @@ export class AdminUsersController {
     if (requesterId === userId) {
       throw new BadRequestException('You cannot delete your own account');
     }
-    return this.usersService.adminDeleteUser(userId);
+    return this.adminService.adminDeleteUser(userId);
   }
 }

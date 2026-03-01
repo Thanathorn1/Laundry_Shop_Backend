@@ -13,21 +13,24 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AccessTokenGuard } from '../../auth/guards/access-token.guard';
-import { UsersService } from '../users.service';
+import { EmployeeService } from './employee.service';
 
 @UseGuards(AccessTokenGuard)
 @Controller('employee')
 export class EmployeeController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly employeeService: EmployeeService) {}
 
-  private async ensureEmployeeOrAdmin(req: any) {
+  private async ensureRole(
+    req: any,
+    allowedRoles: Array<'user' | 'rider' | 'admin' | 'employee'>,
+  ) {
     const userId = req?.user?.userId || req?.user?.sub || req?.user?.id;
     if (!userId) {
-      throw new ForbiddenException('Employee only');
+      throw new ForbiddenException('Unauthorized');
     }
 
-    const user = await this.usersService.findUserById(userId);
-    if (!user || (user.role !== 'employee' && user.role !== 'admin')) {
+    const user = await this.employeeService.findUserById(userId);
+    if (!user || !allowedRoles.includes(user.role as any)) {
       throw new ForbiddenException('Employee only');
     }
 
@@ -36,8 +39,8 @@ export class EmployeeController {
 
   @Get('me')
   async getMyProfile(@Req() req: any) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.getEmployeeProfile(employeeId);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.getEmployeeProfile(employeeId);
   }
 
   @Put('update')
@@ -51,8 +54,8 @@ export class EmployeeController {
       profileImage?: string;
     },
   ) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.updateEmployeeProfile(employeeId, body);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.updateEmployeeProfile(employeeId, body);
   }
 
   @Get('shops/nearby')
@@ -62,7 +65,7 @@ export class EmployeeController {
     @Query('lng') lngRaw: string,
     @Query('maxDistanceKm') maxRaw?: string,
   ) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
 
     const hasLat = latRaw !== undefined && latRaw !== null && latRaw !== '';
     const hasLng = lngRaw !== undefined && lngRaw !== null && lngRaw !== '';
@@ -74,7 +77,7 @@ export class EmployeeController {
       throw new BadRequestException('lat and lng must be numbers');
     }
 
-    return this.usersService.listNearbyShopsForEmployee(
+    return this.employeeService.listNearbyShopsForEmployee(
       employeeId,
       lat,
       lng,
@@ -84,20 +87,20 @@ export class EmployeeController {
 
   @Get('shops/:shopId/orders')
   async getShopOrders(@Req() req: any, @Param('shopId') shopId: string) {
-    await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.listEmployeeShopOrders(shopId);
+    await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.listEmployeeShopOrders(shopId);
   }
 
   @Post('shops/:shopId/join-request')
   async requestJoinShop(@Req() req: any, @Param('shopId') shopId: string) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.employeeRequestJoinShop(employeeId, shopId);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.employeeRequestJoinShop(employeeId, shopId);
   }
 
   @Get('shops/:shopId/join-requests')
   async listShopJoinRequests(@Req() req: any, @Param('shopId') shopId: string) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    const actor = await this.usersService.findUserById(employeeId);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    const actor = await this.employeeService.findUserById(employeeId);
     if (!actor) {
       throw new ForbiddenException('Employee only');
     }
@@ -116,7 +119,7 @@ export class EmployeeController {
       );
     }
 
-    return this.usersService.listEmployeeJoinRequestsForShop(shopId);
+    return this.employeeService.listEmployeeJoinRequestsForShop(shopId);
   }
 
   @Patch('join-requests/:employeeId')
@@ -125,13 +128,13 @@ export class EmployeeController {
     @Param('employeeId') employeeId: string,
     @Body() body: { action?: 'approve' | 'reject' },
   ) {
-    const actorUserId = await this.ensureEmployeeOrAdmin(req);
+    const actorUserId = await this.ensureRole(req, ['employee', 'admin']);
     const action = body?.action;
     if (action !== 'approve' && action !== 'reject') {
       throw new BadRequestException('action must be approve or reject');
     }
 
-    return this.usersService.resolveEmployeeJoinRequest(
+    return this.employeeService.resolveEmployeeJoinRequest(
       actorUserId,
       employeeId,
       action,
@@ -140,19 +143,19 @@ export class EmployeeController {
 
   @Patch('orders/:orderId/start-wash')
   async startWash(@Req() req: any, @Param('orderId') orderId: string) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.employeeStartWash(orderId, employeeId);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.employeeStartWash(orderId, employeeId);
   }
 
   @Patch('orders/:orderId/finish-wash')
   async finishWash(@Req() req: any, @Param('orderId') orderId: string) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.employeeFinishWash(orderId, employeeId);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.employeeFinishWash(orderId, employeeId);
   }
 
   @Patch('orders/:orderId/finish-dry')
   async finishDry(@Req() req: any, @Param('orderId') orderId: string) {
-    const employeeId = await this.ensureEmployeeOrAdmin(req);
-    return this.usersService.employeeFinishDry(orderId, employeeId);
+    const employeeId = await this.ensureRole(req, ['employee', 'admin']);
+    return this.employeeService.employeeFinishDry(orderId, employeeId);
   }
 }

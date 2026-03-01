@@ -7,10 +7,7 @@ import { User, UserSchema } from './admin/schemas/user.schema';
 import { Customer, CustomerSchema } from './customer/schemas/customer.schema';
 import { Review, ReviewSchema } from './customer/schemas/review.schema';
 import { Order, OrderSchema } from './customer/schemas/order.schema';
-import { CustomersController } from './customer/customers.controller';
-import { AdminUsersController } from './admin/admin-users.controller';
 import { Shop, ShopSchema } from '../map/schemas/shop.schema';
-import { EmployeeController } from './employee/employee.controller';
 import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
@@ -27,8 +24,6 @@ import { RealtimeModule } from '../realtime/realtime.module';
 
   providers: [UsersService],
 
-  controllers: [CustomersController, AdminUsersController, EmployeeController],
-
   exports: [UsersService],
 })
-export class UsersModule {}
+export class UsersCoreModule {}

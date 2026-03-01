@@ -10,14 +10,14 @@ import { AuthService } from './auth.service';
 
 import { AuthController } from './auth.controller';
 
-import { UsersModule } from '../users/users.module';
+import { UsersCoreModule } from '../users/users-core.module';
 
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 import { RefreshStrategy } from './strategies/refresh.strategy';
 
 @Module({
-  imports: [UsersModule, PassportModule, JwtModule.register({})],
+  imports: [UsersCoreModule, PassportModule, JwtModule.register({})],
 
   controllers: [AuthController],
 
