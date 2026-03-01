@@ -1804,7 +1804,10 @@ export class UsersService {
     }
 
     return this.orderModel
-      .find({ shopId: new Types.ObjectId(shopId) as any })
+      .find({
+        shopId: new Types.ObjectId(shopId) as any,
+        status: { $in: ['at_shop', 'washing', 'drying', 'laundry_done'] },
+      })
       .populate('customerId', 'firstName lastName phoneNumber')
       .populate('employeeId', 'firstName lastName email phoneNumber')
       .sort({ createdAt: -1 })
