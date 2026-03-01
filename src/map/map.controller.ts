@@ -144,9 +144,9 @@ export class MapController {
     @Param('shopId') shopId: string,
     @Body() body: any,
   ) {
-    await this.ensureAdminOrEmployee(req);
+    const actor = await this.ensureAdminOrEmployee(req);
 
-    const updated = await this.mapService.updateShopPin(shopId, body);
+    const updated = await this.mapService.updateShopPin(shopId, body, actor.role);
     if (!updated) throw new NotFoundException('Shop not found');
     return updated;
   }

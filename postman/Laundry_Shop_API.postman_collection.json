@@ -1018,6 +1018,21 @@
             },
             "url": { "raw": "{{baseUrl}}/map/shops", "host": ["{{baseUrl}}"], "path": ["map", "shops"] }
           }
+        },
+        {
+          "name": "Edit Shop Pin (Bearer: employee, resets to pending)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopName\": \"Updated Laundry Shop\",\n  \"label\": \"Updated Laundry Shop\",\n  \"phoneNumber\": \"0891234567\",\n  \"totalWashingMachines\": 12,\n  \"totalDryingMachines\": 10,\n  \"machineSizeConfig\": {\n    \"s\": 5,\n    \"m\": 4,\n    \"l\": 3\n  },\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/map/shops/{{shopId}}", "host": ["{{baseUrl}}"], "path": ["map", "shops", "{{shopId}}"] }
+          }
         }
       ]
     },

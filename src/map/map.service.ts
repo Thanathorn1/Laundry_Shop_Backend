@@ -468,7 +468,7 @@ export class MapService {
     return this.shopModel.find().sort({ createdAt: -1 }).lean();
   }
 
-  async updateShopPin(shopId: string, payload: any) {
+  async updateShopPin(shopId: string, payload: any, editorRole?: string) {
     const existing = await this.shopModel.findOne({ _id: shopId }).lean();
     const legacyExisting = !existing
       ? await this.addressModel
@@ -525,6 +525,13 @@ export class MapService {
     }
     if (payload.location !== undefined)
       updateData.location = this.normalizeLocation(payload.location);
+
+    // If editor is employee, reset approval status to pending
+    if (editorRole === 'employee') {
+      updateData.approvalStatus = 'pending';
+      updateData.approvedBy = null;
+      updateData.approvedAt = null;
+    }
 
     if (existing) {
       return this.shopModel
