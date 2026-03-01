@@ -444,6 +444,162 @@
       ]
     },
     {
+      "name": "Map",
+      "item": [
+        {
+          "name": "Distance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from\": { \"latitude\": 13.7563, \"longitude\": 100.5018 },\n  \"to\": { \"latitude\": 13.7367, \"longitude\": 100.5231 }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/map/distance",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "distance"]
+            }
+          }
+        },
+        {
+          "name": "Delivery Fee",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distanceKm\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/map/delivery-fee",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "delivery-fee"]
+            }
+          }
+        },
+        {
+          "name": "Road Route (Bearer: any logged-in user)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/map/road-route?fromLat=13.7563&fromLng=100.5018&toLat=13.7367&toLng=100.5231",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "road-route"],
+              "query": [
+                { "key": "fromLat", "value": "13.7563" },
+                { "key": "fromLng", "value": "100.5018" },
+                { "key": "toLat", "value": "13.7367" },
+                { "key": "toLng", "value": "100.5231" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerType\": \"customer\",\n  \"ownerId\": \"{{userId}}\",\n  \"label\": \"Home\",\n  \"address\": \"Bangkok\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/addresses",
+              "host": ["{{baseUrl}}"],
+              "path": ["addresses"]
+            }
+          }
+        },
+        {
+          "name": "List Addresses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/addresses?ownerType=customer&ownerId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["addresses"],
+              "query": [
+                { "key": "ownerType", "value": "customer" },
+                { "key": "ownerId", "value": "{{userId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Rider Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"riderId\": \"{{riderId}}\",\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rider/location",
+              "host": ["{{baseUrl}}"],
+              "path": ["rider", "location"]
+            }
+          }
+        },
+        {
+          "name": "Get Rider Location",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/rider/location/{{riderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["rider", "location", "{{riderId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Shops (Visible) (Bearer: any logged-in user)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/map/shops",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "shops"]
+            }
+          }
+        },
+        {
+          "name": "Nearby Shops (Bearer: any logged-in user)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/map/shops/nearby?lat=13.7563&lng=100.5018&maxDistanceKm=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["map", "shops", "nearby"],
+              "query": [
+                { "key": "lat", "value": "13.7563" },
+                { "key": "lng", "value": "100.5018" },
+                { "key": "maxDistanceKm", "value": "5" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin",
       "item": [
         {
@@ -637,7 +793,7 @@
           }
         },
         {
-          "name": "List All Shops",
+          "name": "List All Shops (Bearer: any logged-in user)",
           "request": {
             "method": "GET",
             "header": [
@@ -647,7 +803,7 @@
           }
         },
         {
-          "name": "Add Pin Shop",
+          "name": "Add Pin Shop (Bearer: admin or employee)",
           "request": {
             "method": "POST",
             "header": [
@@ -660,6 +816,7 @@
                 { "key": "label", "value": "Admin Laundry Shop", "type": "text" },
                 { "key": "phoneNumber", "value": "0891234567", "type": "text" },
                 { "key": "totalWashingMachines", "value": "10", "type": "text" },
+                { "key": "totalDryingMachines", "value": "8", "type": "text" },
                 { "key": "machineSizeConfig[s]", "value": "4", "type": "text" },
                 { "key": "machineSizeConfig[m]", "value": "3", "type": "text" },
                 { "key": "machineSizeConfig[l]", "value": "3", "type": "text" },
@@ -673,7 +830,7 @@
           }
         },
         {
-          "name": "Edit Pin Shop",
+          "name": "Edit Pin Shop (Bearer: admin or employee)",
           "request": {
             "method": "PUT",
             "header": [
@@ -686,6 +843,7 @@
                 { "key": "label", "value": "Admin Laundry Shop (Updated)", "type": "text" },
                 { "key": "phoneNumber", "value": "0899999999", "type": "text" },
                 { "key": "totalWashingMachines", "value": "12", "type": "text" },
+                { "key": "totalDryingMachines", "value": "9", "type": "text" },
                 { "key": "machineSizeConfig[s]", "value": "5", "type": "text" },
                 { "key": "machineSizeConfig[m]", "value": "4", "type": "text" },
                 { "key": "machineSizeConfig[l]", "value": "3", "type": "text" },
@@ -699,7 +857,7 @@
           }
         },
         {
-          "name": "Approve Shop Pin",
+          "name": "Approve Shop Pin (Bearer: admin only)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -709,7 +867,7 @@
           }
         },
         {
-          "name": "Delete Shop",
+          "name": "Delete Shop (Bearer: admin only)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -856,7 +1014,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shopName\": \"My Laundry Shop\",\n  \"label\": \"My Laundry Shop\",\n  \"phoneNumber\": \"0891234567\",\n  \"totalWashingMachines\": 10,\n  \"machineSizeConfig\": {\n    \"s\": 4,\n    \"m\": 3,\n    \"l\": 3\n  },\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
+              "raw": "{\n  \"shopName\": \"My Laundry Shop\",\n  \"label\": \"My Laundry Shop\",\n  \"phoneNumber\": \"0891234567\",\n  \"totalWashingMachines\": 10,\n  \"totalDryingMachines\": 8,\n  \"machineSizeConfig\": {\n    \"s\": 4,\n    \"m\": 3,\n    \"l\": 3\n  },\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
             },
             "url": { "raw": "{{baseUrl}}/map/shops", "host": ["{{baseUrl}}"], "path": ["map", "shops"] }
           }

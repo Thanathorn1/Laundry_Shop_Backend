@@ -172,7 +172,7 @@ export class UsersService {
   private async getShopMachineStats(shopId: string) {
     const inUseCount = await this.orderModel.countDocuments({
       shopId: new Types.ObjectId(shopId) as any,
-      status: { $in: ['at_shop', 'washing', 'drying'] },
+      status: { $in: ['at_shop', 'washing'] },
     });
 
     const shop = await this.shopModel
@@ -246,14 +246,32 @@ export class UsersService {
             {
               $group: {
                 _id: '$shopId',
-                machineInUse: { $sum: 1 },
+                machineInUse: {
+                  $sum: {
+                    $cond: [{ $in: ['$status', ['at_shop', 'washing']] }, 1, 0],
+                  },
+                },
+                dryMachineInUse: {
+                  $sum: {
+                    $cond: [{ $eq: ['$status', 'drying'] }, 1, 0],
+                  },
+                },
               },
             },
           ])
         : [];
 
-    const usageByShopId = new Map<string, number>(
-      usage.map((item: any) => [String(item._id), Number(item.machineInUse) || 0]),
+    const usageByShopId = new Map<
+      string,
+      { machineInUse: number; dryMachineInUse: number }
+    >(
+      usage.map((item: any) => [
+        String(item._id),
+        {
+          machineInUse: Number(item.machineInUse) || 0,
+          dryMachineInUse: Number(item.dryMachineInUse) || 0,
+        },
+      ]),
     );
 
     const enriched = allShops.map((shop: any) => {
@@ -261,14 +279,30 @@ export class UsersService {
         1,
         Number(shop?.totalWashingMachines) || 10,
       );
-      const machineInUse = usageByShopId.get(String(shop._id)) || 0;
+      const totalDryingMachines = Math.max(
+        1,
+        Number(shop?.totalDryingMachines) || totalWashingMachines,
+      );
+      const usage = usageByShopId.get(String(shop._id)) || {
+        machineInUse: 0,
+        dryMachineInUse: 0,
+      };
+      const machineInUse = usage.machineInUse;
       const machineAvailable = Math.max(0, totalWashingMachines - machineInUse);
+      const dryMachineInUse = usage.dryMachineInUse;
+      const dryMachineAvailable = Math.max(
+        0,
+        totalDryingMachines - dryMachineInUse,
+      );
 
       return {
         ...shop,
         totalWashingMachines,
+        totalDryingMachines,
         machineInUse,
         machineAvailable,
+        dryMachineInUse,
+        dryMachineAvailable,
       };
     });
 

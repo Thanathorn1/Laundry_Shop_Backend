@@ -21,6 +21,9 @@ export class Shop extends Document {
   @Prop({ type: Number, default: 10, min: 1 })
   totalWashingMachines: number;
 
+  @Prop({ type: Number, default: 10, min: 1 })
+  totalDryingMachines: number;
+
   @Prop({
     type: {
       s: { type: Number, default: 10, min: 0 },

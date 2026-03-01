@@ -6,6 +6,10 @@ import {
   Min,
   Max,
   IsArray,
+  IsNotEmpty,
+  IsIn,
+  IsISO8601,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -96,12 +100,13 @@ export class CreateReviewDto {
 }
 
 export class CreateOrderDto {
+  @IsNotEmpty()
   @IsString()
   productName: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  description?: string;
+  description: string;
 
   @IsOptional()
   @IsArray()
@@ -115,9 +120,9 @@ export class CreateOrderDto {
   @Type(() => Number)
   pickupLongitude: number;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  pickupAddress?: string;
+  pickupAddress: string;
 
   @IsOptional()
   @IsNumber()
@@ -133,28 +138,33 @@ export class CreateOrderDto {
   @IsString()
   deliveryAddress?: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  contactPhone?: string;
+  contactPhone: string;
 
-  @IsOptional()
+  @IsNotEmpty()
+  @IsIn(['wash', 'dry'])
   @IsString()
-  laundryType?: 'wash' | 'dry';
+  laundryType: 'wash' | 'dry';
 
-  @IsOptional()
+  @IsNotEmpty()
+  @IsIn(['s', 'm', 'l', '0-4', '6-10', '10-20'])
   @IsString()
-  weightCategory?: 's' | 'm' | 'l' | '0-4' | '6-10' | '10-20';
+  weightCategory: 's' | 'm' | 'l' | '0-4' | '6-10' | '10-20';
 
-  @IsOptional()
+  @Min(1)
   @IsNumber()
   @Type(() => Number)
-  serviceTimeMinutes?: number;
+  serviceTimeMinutes: number;
 
-  @IsOptional()
+  @IsNotEmpty()
+  @IsIn(['now', 'schedule'])
   @IsString()
-  pickupType?: 'now' | 'schedule';
+  pickupType: 'now' | 'schedule';
 
-  @IsOptional()
+  @ValidateIf((value: CreateOrderDto) => value.pickupType === 'schedule')
+  @IsNotEmpty()
+  @IsISO8601()
   pickupAt?: string;
 }
 

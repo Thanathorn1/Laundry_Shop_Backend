@@ -8,6 +8,12 @@ import { OrderLocation } from './schemas/order-location.schema';
 import { Shop } from './schemas/shop.schema';
 import { User } from '../users/admin/schemas/user.schema';
 
+type RoadRouteResult = {
+  points: [number, number][];
+  distanceKm: number | null;
+  durationMin: number | null;
+};
+
 @Injectable()
 export class MapService {
   constructor(
@@ -19,10 +25,136 @@ export class MapService {
   ) {}
 
   private migrationDone = false;
+  private readonly osrmServers = [
+    'https://router.project-osrm.org',
+    'https://routing.openstreetmap.de/routed-car',
+  ];
+  private readonly roadRouteCacheTtlMs = 30_000;
+  private readonly roadRouteCache = new Map<
+    string,
+    { expiresAt: number; data: RoadRouteResult }
+  >();
+
+  private roundCoord(value: number) {
+    return Math.round(value * 100000) / 100000;
+  }
+
+  private roadRouteKey(
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ) {
+    return `${this.roundCoord(fromLat)},${this.roundCoord(fromLng)}->${this.roundCoord(toLat)},${this.roundCoord(toLng)}`;
+  }
+
+  private async tryOsrmServer(
+    server: string,
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ): Promise<RoadRouteResult | null> {
+    try {
+      const url = `${server}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 7000);
+
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const route = Array.isArray(data?.routes) ? data.routes[0] : null;
+      const coordinates = Array.isArray(route?.geometry?.coordinates)
+        ? route.geometry.coordinates
+        : [];
+
+      const points: [number, number][] = coordinates
+        .filter((coord: unknown) => Array.isArray(coord) && coord.length >= 2)
+        .map((coord: unknown) => {
+          const c = coord as [number, number];
+          return [Number(c[1]), Number(c[0])] as [number, number];
+        })
+        .filter(
+          (coord: [number, number]) =>
+            Number.isFinite(coord[0]) && Number.isFinite(coord[1]),
+        );
+
+      if (points.length < 2) return null;
+
+      return {
+        points,
+        distanceKm: Number.isFinite(route?.distance)
+          ? Number(route.distance) / 1000
+          : null,
+        durationMin: Number.isFinite(route?.duration)
+          ? Number(route.duration) / 60
+          : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async getRoadRoute(
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ): Promise<RoadRouteResult> {
+    const key = this.roadRouteKey(fromLat, fromLng, toLat, toLng);
+    const now = Date.now();
+    const cached = this.roadRouteCache.get(key);
+
+    if (cached && cached.expiresAt > now) {
+      return cached.data;
+    }
+
+    for (const server of this.osrmServers) {
+      const result = await this.tryOsrmServer(
+        server,
+        fromLat,
+        fromLng,
+        toLat,
+        toLng,
+      );
+      if (result) {
+        this.roadRouteCache.set(key, {
+          expiresAt: now + this.roadRouteCacheTtlMs,
+          data: result,
+        });
+        return result;
+      }
+    }
+
+    if (cached) {
+      return cached.data;
+    }
+
+    return {
+      points: [],
+      distanceKm: null,
+      durationMin: null,
+    };
+  }
 
   private normalizeTotalWashingMachines(value: unknown): number {
-    if (typeof value !== 'number' || Number.isNaN(value)) return 10;
-    return Math.max(1, Math.floor(value));
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 10;
+    return Math.max(1, Math.floor(parsed));
+  }
+
+  private normalizeTotalDryingMachines(
+    value: unknown,
+    fallbackTotalWashing = 10,
+  ): number {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return Math.max(1, Math.floor(fallbackTotalWashing));
+    }
+    return Math.max(1, Math.floor(parsed));
   }
 
   private normalizeMachineSizeConfig(
@@ -69,6 +201,7 @@ export class MapService {
         photoImage: item.photoImage || '',
         ownerId: item.ownerId || 'legacy',
         totalWashingMachines: 10,
+        totalDryingMachines: 10,
         machineSizeConfig: { s: 10, m: 0, l: 0 },
         approvalStatus: 'approved',
         approvedBy: null,
@@ -212,6 +345,10 @@ export class MapService {
       payload.machineSizeConfig,
       payload.totalWashingMachines,
     );
+    const totalDryingMachines = this.normalizeTotalDryingMachines(
+      payload.totalDryingMachines,
+      machineConfig.total,
+    );
 
     const doc = new this.shopModel({
       ownerId,
@@ -220,6 +357,7 @@ export class MapService {
       phoneNumber: payload.phoneNumber || '',
       photoImage: savedPhoto,
       totalWashingMachines: machineConfig.total,
+      totalDryingMachines,
       machineSizeConfig: {
         s: machineConfig.s,
         m: machineConfig.m,
@@ -258,7 +396,8 @@ export class MapService {
       updateData.phoneNumber = payload.phoneNumber;
     if (
       payload.totalWashingMachines !== undefined ||
-      payload.machineSizeConfig !== undefined
+      payload.machineSizeConfig !== undefined ||
+      payload.totalDryingMachines !== undefined
     ) {
       const existingTotal = Number((target as any)?.totalWashingMachines) || 10;
       const fallbackTotal =
@@ -277,6 +416,15 @@ export class MapService {
         m: normalized.m,
         l: normalized.l,
       };
+
+      const existingDrying = Number((target as any)?.totalDryingMachines);
+      const dryingFallback = Number.isFinite(existingDrying)
+        ? existingDrying
+        : normalized.total;
+      updateData.totalDryingMachines = this.normalizeTotalDryingMachines(
+        payload.totalDryingMachines,
+        dryingFallback,
+      );
     }
     if (payload.photoImage !== undefined) {
       const nextPhoto = this.persistShopPhoto(payload.photoImage);

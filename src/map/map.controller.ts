@@ -68,6 +68,28 @@ export class MapController {
     return { fee, distanceKm: distance };
   }
 
+  @UseGuards(AccessTokenGuard)
+  @Get('map/road-route')
+  async roadRoute(@Query() query: any) {
+    const fromLat = Number(query.fromLat);
+    const fromLng = Number(query.fromLng);
+    const toLat = Number(query.toLat);
+    const toLng = Number(query.toLng);
+
+    if (
+      Number.isNaN(fromLat) ||
+      Number.isNaN(fromLng) ||
+      Number.isNaN(toLat) ||
+      Number.isNaN(toLng)
+    ) {
+      throw new BadRequestException(
+        'fromLat, fromLng, toLat, toLng query are required numbers',
+      );
+    }
+
+    return this.mapService.getRoadRoute(fromLat, fromLng, toLat, toLng);
+  }
+
   @Post('addresses')
   async createAddress(@Body() body: any) {
     return this.mapService.createAddress(body);
