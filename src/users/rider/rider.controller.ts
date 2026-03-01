@@ -132,7 +132,7 @@ export class RiderController {
 
   @Patch('accept/:id')
   async acceptOrder(@Param('id') orderId: string, @Req() req: any) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.riderService.acceptOrder(orderId, riderId);
   }
 
@@ -142,7 +142,7 @@ export class RiderController {
     @Body('status') status: string,
     @Req() req: any,
   ) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.riderService.updateStatus(orderId, riderId, status);
   }
 
@@ -152,7 +152,7 @@ export class RiderController {
     @Body('shopId') shopId: string,
     @Req() req: any,
   ) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.usersService.riderHandoverToShop(orderId, riderId, shopId);
   }
 
@@ -162,25 +162,25 @@ export class RiderController {
     @Body('shopId') shopId: string | null,
     @Req() req: any,
   ) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.usersService.riderSelectShop(orderId, riderId, shopId ?? null);
   }
 
   @Patch('return-delivery/:id')
   async startReturnDelivery(@Param('id') orderId: string, @Req() req: any) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.usersService.riderStartDeliveryBack(orderId, riderId);
   }
 
   @Patch('complete-delivery/:id')
   async completeDelivery(@Param('id') orderId: string, @Req() req: any) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.usersService.riderCompleteDelivery(orderId, riderId);
   }
 
   @Delete('profile')
   async deleteMyProfile(@Req() req: any) {
-    const riderId = await this.ensureRole(req, ['rider']);
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.riderService.deleteProfile(riderId);
   }
 
