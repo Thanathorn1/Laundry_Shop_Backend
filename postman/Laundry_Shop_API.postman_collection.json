@@ -1024,12 +1024,24 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shopName\": \"Updated Laundry Shop\",\n  \"label\": \"Updated Laundry Shop\",\n  \"phoneNumber\": \"0891234567\",\n  \"totalWashingMachines\": 12,\n  \"totalDryingMachines\": 10,\n  \"machineSizeConfig\": {\n    \"s\": 5,\n    \"m\": 4,\n    \"l\": 3\n  },\n  \"location\": {\n    \"type\": \"Point\",\n    \"coordinates\": [100.5018, 13.7563]\n  }\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "shopName", "value": "Updated Laundry Shop", "type": "text" },
+                { "key": "label", "value": "Updated Laundry Shop", "type": "text" },
+                { "key": "phoneNumber", "value": "0891234567", "type": "text" },
+                { "key": "totalWashingMachines", "value": "12", "type": "text" },
+                { "key": "totalDryingMachines", "value": "10", "type": "text" },
+                { "key": "machineSizeConfig[s]", "value": "5", "type": "text" },
+                { "key": "machineSizeConfig[m]", "value": "4", "type": "text" },
+                { "key": "machineSizeConfig[l]", "value": "3", "type": "text" },
+                { "key": "location[type]", "value": "Point", "type": "text" },
+                { "key": "location[coordinates][0]", "value": "100.5018", "type": "text" },
+                { "key": "location[coordinates][1]", "value": "13.7563", "type": "text" },
+                { "key": "photoImage", "type": "file", "src": "" }
+              ]
             },
             "url": { "raw": "{{baseUrl}}/map/shops/{{shopId}}", "host": ["{{baseUrl}}"], "path": ["map", "shops", "{{shopId}}"] }
           }
