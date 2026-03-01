@@ -29,7 +29,11 @@ export class MapService {
     'https://router.project-osrm.org',
     'https://routing.openstreetmap.de/routed-car',
   ];
-  private readonly roadRouteCacheTtlMs = 30_000;
+  private readonly valhallaServers = [
+    'https://valhalla1.openstreetmap.de',
+    'https://valhalla2.openstreetmap.de',
+  ];
+  private readonly roadRouteCacheTtlMs = 60_000;
   private readonly roadRouteCache = new Map<
     string,
     { expiresAt: number; data: RoadRouteResult }
@@ -48,6 +52,79 @@ export class MapService {
     return `${this.roundCoord(fromLat)},${this.roundCoord(fromLng)}->${this.roundCoord(toLat)},${this.roundCoord(toLng)}`;
   }
 
+  /** Decode Valhalla's default encoded polyline (precision 6) to [lat, lng][] */
+  private decodePolyline6(encoded: string): [number, number][] {
+    const points: [number, number][] = [];
+    let index = 0, lat = 0, lng = 0;
+    while (index < encoded.length) {
+      let b: number, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+      shift = 0; result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+      points.push([lat / 1e6, lng / 1e6]);
+    }
+    return points;
+  }
+
+  /** Try Valhalla routing API (primary — reliably reachable) */
+  private async tryValhallaServer(
+    server: string,
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number,
+  ): Promise<RoadRouteResult | null> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(`${server}/route`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locations: [
+            { lat: fromLat, lon: fromLng },
+            { lat: toLat, lon: toLng },
+          ],
+          costing: 'auto',
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const leg = data?.trip?.legs?.[0];
+      if (!leg?.shape || typeof leg.shape !== 'string') return null;
+
+      const points = this.decodePolyline6(leg.shape).filter(
+        ([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng),
+      );
+      if (points.length < 2) return null;
+
+      const summary = data?.trip?.summary;
+      return {
+        points,
+        distanceKm: Number.isFinite(summary?.length) ? Number(summary.length) : null,
+        durationMin: Number.isFinite(summary?.time) ? Number(summary.time) / 60 : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Try OSRM routing API (fallback) */
   private async tryOsrmServer(
     server: string,
     fromLat: number,
@@ -58,7 +135,7 @@ export class MapService {
     try {
       const url = `${server}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 7000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
@@ -112,6 +189,19 @@ export class MapService {
       return cached.data;
     }
 
+    // Try Valhalla first (fast, reliable)
+    for (const server of this.valhallaServers) {
+      const result = await this.tryValhallaServer(server, fromLat, fromLng, toLat, toLng);
+      if (result) {
+        this.roadRouteCache.set(key, {
+          expiresAt: now + this.roadRouteCacheTtlMs,
+          data: result,
+        });
+        return result;
+      }
+    }
+
+    // Fallback: OSRM
     for (const server of this.osrmServers) {
       const result = await this.tryOsrmServer(
         server,
