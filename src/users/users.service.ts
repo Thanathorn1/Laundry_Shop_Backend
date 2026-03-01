@@ -570,34 +570,58 @@ export class UsersService {
       throw new BadRequestException('Invalid shopId');
     }
 
-    const [employee, shop] = await Promise.all([
-      this.userModel.findOne({ _id: employeeId, role: 'employee' }).exec(),
+    const [actor, shop] = await Promise.all([
+      this.userModel
+        .findOne({ _id: employeeId, role: { $in: ['employee', 'admin'] } })
+        .exec(),
       this.shopModel.findById(shopId).select('_id').lean().exec(),
     ]);
 
-    if (!employee) {
-      throw new NotFoundException('Employee not found');
+    if (!actor) {
+      throw new NotFoundException('User not found');
     }
     if (!shop) {
       throw new NotFoundException('Shop not found');
     }
 
     const assignedShopId =
-      typeof (employee as any).assignedShopId === 'string'
-        ? String((employee as any).assignedShopId)
+      typeof (actor as any).assignedShopId === 'string'
+        ? String((actor as any).assignedShopId)
         : '';
-    const assignedShopIds = Array.isArray((employee as any).assignedShopIds)
-      ? (employee as any).assignedShopIds.map(String)
+    const assignedShopIds = Array.isArray((actor as any).assignedShopIds)
+      ? (actor as any).assignedShopIds.map(String)
       : [];
     const isAlreadyMember =
       assignedShopId === shopId || assignedShopIds.includes(String(shopId));
     if (isAlreadyMember) {
-      return employee;
+      return actor;
     }
 
-    employee.joinRequestShopId = shopId;
-    employee.joinRequestStatus = 'pending';
-    await employee.save();
+    if (actor.role === 'admin') {
+      const currentMembership = Array.isArray((actor as any).assignedShopIds)
+        ? (actor as any).assignedShopIds.map(String)
+        : [];
+
+      if (!currentMembership.includes(String(shopId))) {
+        currentMembership.push(String(shopId));
+      }
+
+      (actor as any).assignedShopIds = currentMembership;
+      (actor as any).assignedShopId = shopId;
+      actor.joinRequestShopId = null;
+      actor.joinRequestStatus = 'none';
+      await actor.save();
+
+      return this.userModel
+        .findById(employeeId)
+        .select('-passwordHash -refreshTokenHash')
+        .lean()
+        .exec();
+    }
+
+    actor.joinRequestShopId = shopId;
+    actor.joinRequestStatus = 'pending';
+    await actor.save();
 
     return this.userModel
       .findById(employeeId)
