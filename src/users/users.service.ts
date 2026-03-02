@@ -376,11 +376,7 @@ export class UsersService {
     }
 
     if (user.role === 'employee') {
-      return enriched.filter(
-        (shop: any) =>
-          shop.approvalStatus === 'approved' ||
-          (shop.approvalStatus === 'pending' && String(shop.ownerId) === String(user._id)),
-      );
+      return enriched;
     }
 
     return enriched.filter((shop: any) => shop.approvalStatus === 'approved');
