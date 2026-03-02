@@ -151,6 +151,16 @@ export class RiderController {
     const riderId = await this.ensureRole(req, ['rider', 'admin']);
     return this.riderService.updateStatus(orderId, riderId, status);
   }
+  
+  @Patch('select-shop/:id')
+  async selectShopForOrder(
+    @Param('id') orderId: string,
+    @Body('shopId') shopId: string | null,
+    @Req() req: any,
+  ) {
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
+    return this.usersService.riderSelectShop(orderId, riderId, shopId ?? null);
+  }
 
   @Patch('handover/:id')
   async handoverToShop(
@@ -162,15 +172,7 @@ export class RiderController {
     return this.usersService.riderHandoverToShop(orderId, riderId, shopId);
   }
 
-  @Patch('select-shop/:id')
-  async selectShopForOrder(
-    @Param('id') orderId: string,
-    @Body('shopId') shopId: string | null,
-    @Req() req: any,
-  ) {
-    const riderId = await this.ensureRole(req, ['rider', 'admin']);
-    return this.usersService.riderSelectShop(orderId, riderId, shopId ?? null);
-  }
+
 
   @Patch('return-delivery/:id')
   async startReturnDelivery(@Param('id') orderId: string, @Req() req: any) {

@@ -25,7 +25,7 @@ export class AuthController {
   signup(@Body() dto: SignUpDto) {
     return this.authService.signUp(dto);
   }
-
+//เป็น Rate Limiting (การจำกัดจำนวนครั้งที่เรียก API) ของ NestJS
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('signin')
   signin(@Body() dto: SignInDto) {

@@ -379,6 +379,10 @@ export class UsersService {
       return enriched;
     }
 
+    if (user.role === 'rider') {
+      return enriched;
+    }
+
     return enriched.filter((shop: any) => shop.approvalStatus === 'approved');
   }
 
