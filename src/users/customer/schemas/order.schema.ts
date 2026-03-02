@@ -24,6 +24,9 @@ export class Order {
   @Prop({ type: Number, default: 50 })
   serviceTimeMinutes: number;
 
+  @Prop({ type: Number, default: 50 })
+  washTimeMinutes: number;
+
   @Prop({ type: String, default: '' })
   description: string;
 

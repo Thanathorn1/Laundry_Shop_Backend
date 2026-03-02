@@ -134,16 +134,20 @@ export class UsersService {
     laundryType?: string;
     weightCategory?: string;
     serviceTimeMinutes?: number;
+    washTimeMinutes?: number;
     pickupType?: string;
   }): number {
     const serviceTimeMinutes = this.normalizeServiceTimeMinutes(
       params.serviceTimeMinutes,
     );
+    const washTimeMinutes = this.normalizeServiceTimeMinutes(
+      params.washTimeMinutes,
+    );
     const washUnitPrice = this.getWashUnitPrice(params.weightCategory);
     const washPrice =
       params.laundryType === 'dry'
         ? 0
-        : (serviceTimeMinutes / 50) * washUnitPrice;
+        : (washTimeMinutes / 50) * washUnitPrice;
     const dryPrice = (serviceTimeMinutes / 50) * 20;
     const baseLaundryPrice = washPrice + dryPrice;
     const deliveryFee = this.DELIVERY_FEE;
@@ -1291,10 +1295,14 @@ export class UsersService {
     const serviceTimeMinutes = this.normalizeServiceTimeMinutes(
       data.serviceTimeMinutes,
     );
+    const washTimeMinutes = this.normalizeServiceTimeMinutes(
+      data.washTimeMinutes,
+    );
     const totalPrice = this.calculateOrderTotalPrice({
       laundryType,
       weightCategory,
       serviceTimeMinutes,
+      washTimeMinutes,
       pickupType,
     });
 
@@ -1307,6 +1315,7 @@ export class UsersService {
       laundryType,
       weightCategory,
       serviceTimeMinutes,
+      washTimeMinutes,
       description: data.description || '',
       images: savedImages,
       pickupLocation,
@@ -1366,6 +1375,8 @@ export class UsersService {
       updateData.weightCategory = data.weightCategory;
     if (data.serviceTimeMinutes !== undefined)
       updateData.serviceTimeMinutes = data.serviceTimeMinutes;
+    if (data.washTimeMinutes !== undefined)
+      updateData.washTimeMinutes = data.washTimeMinutes;
     if (data.pickupAddress !== undefined)
       updateData.pickupAddress = data.pickupAddress;
     if (data.pickupType) updateData.pickupType = data.pickupType;
@@ -1393,6 +1404,10 @@ export class UsersService {
       data.serviceTimeMinutes !== undefined
         ? this.normalizeServiceTimeMinutes(data.serviceTimeMinutes)
         : this.normalizeServiceTimeMinutes(existingOrder.serviceTimeMinutes);
+    const nextWashTimeMinutes =
+      data.washTimeMinutes !== undefined
+        ? this.normalizeServiceTimeMinutes(data.washTimeMinutes)
+        : this.normalizeServiceTimeMinutes(existingOrder.washTimeMinutes);
     const nextPickupType =
       data.pickupType !== undefined ? data.pickupType : existingOrder.pickupType;
     const nextPickupAt =
@@ -1407,11 +1422,15 @@ export class UsersService {
     if (data.serviceTimeMinutes !== undefined) {
       updateData.serviceTimeMinutes = nextServiceTimeMinutes;
     }
+    if (data.washTimeMinutes !== undefined) {
+      updateData.washTimeMinutes = nextWashTimeMinutes;
+    }
 
     updateData.totalPrice = this.calculateOrderTotalPrice({
       laundryType: nextLaundryType,
       weightCategory: nextWeightCategory,
       serviceTimeMinutes: nextServiceTimeMinutes,
+      washTimeMinutes: nextWashTimeMinutes,
       pickupType: nextPickupType,
     });
 

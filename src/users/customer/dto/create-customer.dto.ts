@@ -157,6 +157,11 @@ export class CreateOrderDto {
   @Type(() => Number)
   serviceTimeMinutes: number;
 
+  @Min(1)
+  @IsNumber()
+  @Type(() => Number)
+  washTimeMinutes: number;
+
   @IsNotEmpty()
   @IsIn(['now', 'schedule'])
   @IsString()
@@ -197,6 +202,11 @@ export class UpdateOrderDto {
   @IsNumber()
   @Type(() => Number)
   serviceTimeMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  washTimeMinutes?: number;
 
   @IsOptional()
   @IsString()

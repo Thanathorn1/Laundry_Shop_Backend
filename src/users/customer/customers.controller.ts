@@ -78,6 +78,7 @@ export class CustomersController {
       deliveryLatitude: this.toNumber(body?.deliveryLatitude),
       deliveryLongitude: this.toNumber(body?.deliveryLongitude),
       serviceTimeMinutes: this.toNumber(body?.serviceTimeMinutes),
+      washTimeMinutes: this.toNumber(body?.washTimeMinutes),
       images: [...bodyImages, ...uploadedImages],
     };
   }
