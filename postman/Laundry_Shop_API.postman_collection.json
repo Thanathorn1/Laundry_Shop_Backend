@@ -1134,6 +1134,16 @@
           }
         },
         {
+          "name": "Cancel Pickup",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rider/cancel-pickup/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["rider", "cancel-pickup", "{{orderId}}"] }
+          }
+        },
+        {
           "name": "Update Rider Order Status",
           "request": {
             "method": "PATCH",

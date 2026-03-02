@@ -202,6 +202,27 @@ export class RiderService {
     return saved;
   }
 
+  async cancelPickup(orderId: string, riderId: string): Promise<OrderDocument> {
+    const order = await this.orderModel.findById(orderId);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (String(order.riderId || '') !== riderId) {
+      throw new BadRequestException('You are not assigned to this order');
+    }
+    if (order.status !== 'assigned') {
+      throw new BadRequestException(
+        `Cannot cancel pickup: order status is ${order.status}, expected assigned`,
+      );
+    }
+
+    order.status = 'pending' as any;
+    order.riderId = null as any;
+    const saved = await order.save();
+    this.orderGateway.emitOrderUpdate(saved);
+    return saved;
+  }
+
   async updateStatus(
     orderId: string,
     riderId: string,

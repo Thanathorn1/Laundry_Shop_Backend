@@ -136,6 +136,12 @@ export class RiderController {
     return this.riderService.acceptOrder(orderId, riderId);
   }
 
+  @Patch('cancel-pickup/:id')
+  async cancelPickup(@Param('id') orderId: string, @Req() req: any) {
+    const riderId = await this.ensureRole(req, ['rider', 'admin']);
+    return this.riderService.cancelPickup(orderId, riderId);
+  }
+
   @Patch('status/:id')
   async updateStatus(
     @Param('id') orderId: string,
