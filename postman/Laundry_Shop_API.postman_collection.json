@@ -708,6 +708,21 @@
           }
         },
         {
+          "name": "Remove Employee From Shop",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shopId\": null\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/customers/admin/employees/{{employeeId}}/shop", "host": ["{{baseUrl}}"], "path": ["customers", "admin", "employees", "{{employeeId}}", "shop"] }
+          }
+        },
+        {
           "name": "Change User Role",
           "request": {
             "method": "PATCH",
